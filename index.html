@@ -1,13 +1,5 @@
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#090d16">
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
-  }
-</script>
-<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -18,69 +10,15 @@
     <meta name="application-name" content="NovaStream IPTV">
     <meta name="description" content="Çoklu Üyelik ve Çoklu Pencere Destekli Web & Android IPTV Oynatıcı">
     <title>NovaStream IPTV - Web Oynatıcı</title>
-    
-    <!-- Dinamik PWA Manifest Bağlantısı (PWABuilder & APK Paketleme İçin) -->
-    <link id="pwaManifestLink" rel="manifest" href="">
-    
+
+    <link rel="manifest" href="./manifest.json">
+    <script>
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+    </script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-<!-- ... existing code ... -->
-        window.addEventListener('DOMContentLoaded', () => {
-            initPwaSupport();
-            init();
-        });
-
-        // --- PWA MANIFEST & SERVICE WORKER (PWABUILDER / APK UYUMLULUĞU) ---
-        function initPwaSupport() {
-            try {
-                // Tek dosya içinde gömülü yüksek çözünürlüklü SVG uygulama ikonu
-                const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#07090e"/><rect x="36" y="36" width="440" height="440" rx="92" fill="url(#g)"/><path d="M196 152v208l164-104z" fill="#07090e"/></svg>`;
-                const iconDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgIcon);
-
-                const manifestObj = {
-                    name: 'NovaStream Multi IPTV',
-                    short_name: 'NovaStream',
-                    description: 'Çoklu Üyelik ve Çoklu Pencere Destekli IPTV Oynatıcı',
-                    start_url: window.location.pathname || './index.html',
-                    scope: './',
-                    display: 'standalone',
-                    orientation: 'landscape',
-                    background_color: '#07090e',
-                    theme_color: '#07090e',
-                    icons: [
-                        { src: iconDataUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
-                        { src: iconDataUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
-                    ]
-                };
-
-                const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
-                const manifestUrl = URL.createObjectURL(manifestBlob);
-                const manifestLink = document.getElementById('pwaManifestLink');
-                if (manifestLink) manifestLink.setAttribute('href', manifestUrl);
-
-                // HTTP/HTTPS ortamında Service Worker kaydı
-                if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
-                    const swCode = `
-                        const CACHE_NAME = 'novastream-iptv-v1';
-                        self.addEventListener('install', (e) => {
-                            self.skipWaiting();
-                        });
-                        self.addEventListener('activate', (e) => {
-                            e.waitUntil(self.clients.claim());
-                        });
-                        self.addEventListener('fetch', (e) => {
-                            if (e.request.method !== 'GET') return;
-                            e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-                        });
-                    `;
-                    const swBlob = new Blob([swCode], { type: 'application/javascript' });
-                    const swUrl = URL.createObjectURL(swBlob);
-                    navigator.serviceWorker.register(swUrl).catch(() => {});
-                }
-            } catch (e) {
-                console.warn('PWA başlatma uyarısı:', e);
-            }
-        }
-    </script>
-</body>
-</html>
