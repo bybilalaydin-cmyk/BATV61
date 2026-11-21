@@ -1,486 +1,2296 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#07090e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>NovaStream IPTV</title>
+    <title>NovaStream IPTV - Web Oynatıcı</title>
+
     <link rel="manifest" href="./manifest.json">
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+    <script>
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+    </script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- HLS.js ve MPEGTS.js (Canlı Yayın Motorları) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-    <style>
-        :root { --bg: #07090e; --panel: #0d131f; --border: #1e293b; --accent: #06b6d4; --text: #f1f5f9; --muted: #94a3b8; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        header { height: 52px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 10px; gap: 8px; flex-shrink: 0; }
-        .row { display: flex; align-items: center; gap: 6px; }
-        button { background: #1e293b; color: var(--text); border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
-        button:active { opacity: 0.8; }
-        button.primary { background: var(--accent); color: #041014; border-color: var(--accent); }
-        button.danger { background: #4c0519; color: #fda4af; border-color: #881337; }
-        
-        .main { flex: 1; display: flex; position: relative; overflow: hidden; }
-        aside { width: 290px; max-width: 85vw; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 20; }
-        aside.closed { display: none; }
-        
-        .filters { padding: 8px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
-        select, input { width: 100%; background: #07090e; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; font-size: 12px; outline: none; }
-        
-        .ch-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
-        .ch-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; background: #111827; border-radius: 6px; border: 1px solid transparent; cursor: pointer; }
-        .ch-item:hover { border-color: var(--accent); }
-        .ch-info { overflow: hidden; padding-right: 6px; }
-        .ch-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ch-meta { font-size: 10px; color: var(--muted); }
-        
-        .stage { flex: 1; padding: 6px; display: grid; gap: 6px; background: #000; position: relative; }
-        .grid-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-        .grid-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
-        .grid-3 { grid-template-columns: 1.3fr 1fr; grid-template-rows: 1fr 1fr; }
-        .grid-3 .slot-0 { grid-row: span 2; }
-        .grid-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-        
-        @media (max-width: 700px) {
-            .grid-2, .grid-3 { grid-template-columns: 1fr; grid-template-rows: repeat(auto-fit, minmax(0, 1fr)); }
-            .grid-3 .slot-0 { grid-row: span 1; }
+    <!-- Google Identity Services (Google Drive OAuth2 İçin) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        cinema: {
+                            950: '#07090e',
+                            900: '#0d111a',
+                            800: '#151b28',
+                            700: '#1e2738',
+                            600: '#2d3a52'
+                        }
+                    }
+                }
+            }
         }
+    </script>
+
+    <style>
+        /* Özel Kaydırma Çubuğu Tasarımı */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d111a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d3a52;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #06b6d4;
+        }
+
+        /* Video Kontrolleri Geçiş Animasyonu */
+        .player-slot:hover .slot-controls,
+        .player-slot.paused .slot-controls,
+        .player-slot.idle .slot-controls {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Çoklu Ekran Izgara Düzenleri */
+        .layout-1 {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+        .layout-2 {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+        }
+        @media (min-width: 768px) {
+            .layout-2 {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: 1fr;
+            }
+        }
+        .layout-3 {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(3, 1fr);
+        }
+        @media (min-width: 1024px) {
+            .layout-3 {
+                grid-template-columns: 1.4fr 1fr;
+                grid-template-rows: repeat(2, 1fr);
+            }
+            .layout-3 > .player-slot:first-child {
+                grid-row: span 2;
+            }
+        }
+        .layout-4 {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+        }
+        @media (min-width: 768px) {
+            .layout-4 {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(2, 1fr);
+            }
+        }
+
+        /* Özel Range Input (Ses Çubuğu) */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+            margin-top: -4px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        /* Çoklu Ekran Tam Ekran (Grid Fullscreen) Stilleri */
+        #player-grid-container:fullscreen {
+            background-color: #000000;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #player-grid-container:fullscreen #multiViewGrid {
+            padding: 4px;
+            gap: 4px;
+            background-color: #000000;
+        }
+        #player-grid-container:fullscreen .player-slot {
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body class="bg-cinema-950 text-slate-200 font-sans antialiased h-screen overflow-hidden flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+
+    <!-- Üst Bilgi Çubuğu (Header) -->
+    <header class="h-14 bg-cinema-900/90 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-4 flex items-center justify-between shrink-0 z-20 gap-2">
+        <div class="flex items-center gap-2 sm:gap-3">
+            <!-- Kenar Çubuğu Aç/Kapa (Mobil ve Sinema Modu) -->
+            <button id="toggleSidebarBtn" title="Kanal Listesini Gizle/Göster" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-cinema-800 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+            
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+                    <svg class="w-5 h-5 text-cinema-950" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </div>
+                <span class="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent hidden sm:inline">
+                    NovaStream <span class="text-xs font-medium text-cyan-400 ml-0.5">MULTI</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Çoklu Ekran Düzeni Seçici (Layout Switcher) -->
+        <div class="flex items-center bg-cinema-950/90 p-1 rounded-xl border border-slate-800 gap-1" title="Çoklu Pencere Düzeni">
+            <button data-layout="1" class="layout-btn active flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-600 text-white transition-all" title="Tek Ekran (1x1)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="12" height="12" rx="1.5"/></svg>
+                <span class="hidden md:inline">1 Ekran</span>
+            </button>
+            <button data-layout="2" class="layout-btn flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-cinema-800 transition-all" title="2 Pencere Yan Yana (1x2)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="2" width="5.5" height="12" rx="1"/><rect x="9" y="2" width="5.5" height="12" rx="1"/></svg>
+                <span class="hidden md:inline">2 Pencere</span>
+            </button>
+            <button data-layout="3" class="layout-btn flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-cinema-800 transition-all" title="3 Pencere (1 Ana + 2 Yan)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="2" width="6.5" height="12" rx="1"/><rect x="9.5" y="2" width="5" height="5.2" rx="1"/><rect x="9.5" y="8.8" width="5" height="5.2" rx="1"/></svg>
+                <span class="hidden lg:inline">3 Pencere</span>
+            </button>
+            <button data-layout="4" class="layout-btn flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-cinema-800 transition-all" title="4 Pencere (2x2 Izgara)">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="1.5" y="2" width="5.5" height="5.2" rx="1"/><rect x="9" y="2" width="5.5" height="5.2" rx="1"/><rect x="1.5" y="8.8" width="5.5" height="5.2" rx="1"/><rect x="9" y="8.8" width="5.5" height="5.2" rx="1"/></svg>
+                <span class="hidden lg:inline">4 Pencere</span>
+            </button>
+        </div>
+
+        <!-- Aktif Liste Bilgisi ve İşlemler -->
+        <div class="flex items-center gap-2">
+            <!-- Google Drive Bulut Senkronizasyon Butonu -->
+            <button id="driveSyncBtn" title="Google Drive ile Üyelikleri Yedekle / Geri Yükle" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-semibold transition-all">
+                <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.71 3.5L1.15 15l3.43 6L11.14 9.5 7.71 3.5zm1.42 0l6.56 11.5h6.86L15.99 3.5H9.13zm2.98 13l-3.43 6h13.72l3.43-6H12.11z"/>
+                </svg>
+                <span id="driveBtnLabel" class="hidden lg:inline">Google Drive</span>
+            </button>
+
+            <!-- Tüm Ekranları Birlikte Tam Ekran Yap Butonu -->
+            <button id="gridFullscreenBtn" title="Seçili Çoklu Pencere Düzenini Tam Ekran Yap (Tarayıcı çubuklarını gizler)" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                </svg>
+                <span class="hidden md:inline">Çoklu Tam Ekran</span>
+            </button>
+
+            <!-- Akıllı Ses Modu (Solo Audio) -->
+            <button id="soloAudioToggleBtn" title="Aktif olduğunda sadece seçili pencerenin sesi açık kalır, diğerleri otomatik susturulur" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-medium transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                </svg>
+                <span class="hidden xl:inline">Tekil Ses: Açık</span>
+            </button>
+
+            <div id="playlistStatsBadge" class="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-cinema-800 border border-slate-700/70 text-xs text-slate-300">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="totalChannelsCount">0 Kanal</span>
+            </div>
+
+            <button id="openUploadModalBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-medium transition-all shadow-lg shadow-cyan-600/20 shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                <span>Üyelik Ekle</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Ana Çalışma Alanı -->
+    <div class="flex-1 flex overflow-hidden relative">
         
-        .slot { background: #0b0f19; border: 1.5px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
-        .slot.active { border-color: var(--accent); }
-        .slot-bar { height: 32px; background: #0f172a; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; border-bottom: 1px solid var(--border); }
-        .slot-body { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
+        <!-- Sol Kenar Çubuğu: Üyelikler, Kategoriler ve Kanal Listesi -->
+        <aside id="sidebar" class="w-full sm:w-80 md:w-96 bg-cinema-900 border-r border-slate-800/80 flex flex-col shrink-0 transition-all duration-300 z-10 absolute sm:relative inset-y-0 left-0">
+            
+            <!-- Üyelik / Liste Seçici ve Yönetimi -->
+            <div class="p-3 border-b border-slate-800/80 space-y-2.5 bg-cinema-900/70">
+                <div class="flex items-center gap-1.5">
+                    <select id="subscriptionSelect" title="Üyelik Filtresi" class="flex-1 bg-cinema-800 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-cyan-300 focus:outline-none focus:border-cyan-500 cursor-pointer">
+                        <option value="ALL">Tüm Üyelikler (0)</option>
+                    </select>
+                    <button id="manageSubsBtn" title="Kayıtlı Üyelikleri Yönet / Sil" class="p-1.5 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700/80 text-slate-300 hover:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Arama Kutusu -->
+                <div class="relative">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Kanal adı ara..." class="w-full bg-cinema-800 border border-slate-700/80 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 transition-colors">
+                    <button id="clearSearchBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Hızlı Filtre Sekmeleri (Tümü / Favoriler) ve Kategori Seçici -->
+                <div class="flex items-center gap-2">
+                    <button id="tabAllBtn" class="flex-1 py-1.5 px-2 rounded-lg text-xs font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 transition-colors">
+                        Tümü
+                    </button>
+                    <button id="tabFavBtn" class="flex-1 py-1.5 px-2 rounded-lg text-xs font-medium bg-cinema-800 text-slate-400 border border-slate-700/60 hover:text-slate-200 transition-colors flex items-center justify-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <span>Favoriler (<span id="favCountBadge">0</span>)</span>
+                    </button>
+                </div>
+
+                <!-- Kategori Açılır Listesi -->
+                <div>
+                    <select id="categorySelect" class="w-full bg-cinema-800 border border-slate-700/80 rounded-lg px-3 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer">
+                        <option value="ALL">Tüm Kategoriler (0)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Kanal Listesi Alanı -->
+            <div id="channelListContainer" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Boş Durum (Liste Yüklenmediğinde) -->
+                <div id="emptySidebarState" class="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
+                    <div class="w-14 h-14 rounded-2xl bg-cinema-800 border border-slate-700/60 flex items-center justify-center mb-3 text-slate-500">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-sm font-medium text-slate-300">Henüz Üyelik Eklenmedi</p>
+                    <p class="text-xs text-slate-500 mt-1 mb-4">Birden fazla .m3u üyeliğinizi ekleyip farklı pencerelerde aynı anda izleyebilirsiniz.</p>
+                    <div class="flex flex-col gap-2 w-full max-w-[200px]">
+                        <button onclick="openModal()" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-medium text-white transition-colors">
+                            + Üyelik Ekle (.M3U)
+                        </button>
+                        <button onclick="loadDemoSubscriptions()" class="px-4 py-2 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-xs font-medium text-emerald-400 transition-colors">
+                            2 Demo Üyelik Yükle
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kanallar Buraya Dinamik Eklenecek -->
+                <div id="channelItemsWrapper" class="space-y-1"></div>
+
+                <!-- Daha Fazla Yükle Butonu -->
+                <div id="loadMoreWrapper" class="hidden pt-2 pb-4 text-center">
+                    <button id="loadMoreBtn" class="w-full py-2.5 px-4 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-xs font-medium text-slate-300 transition-colors">
+                        Daha Fazla Kanal Göster
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sağ Ana Alan: Çoklu Pencere Video Oynatıcı Izgarası -->
+        <main class="flex-1 flex flex-col bg-cinema-950 overflow-hidden">
+            
+            <!-- Üst Bilgi Şeridi (Aktif Pencere Göstergesi) -->
+            <div class="px-4 py-2 bg-cinema-900/60 border-b border-slate-800/80 flex items-center justify-between text-xs shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-semibold" id="activeSlotBanner">
+                        Aktif: Pencere 1
+                    </span>
+                    <span class="text-slate-400 hidden sm:inline">
+                        Soldaki listeden kanal seçtiğinizde aktif pencereye yüklenir veya kanalı doğrudan istediğiniz pencereye sürükleyebilirsiniz.
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="stopAllStreamsBtn" class="text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1" title="Tüm Pencerelerdeki Yayınları Durdur">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+                        </svg>
+                        <span>Tümünü Durdur</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tam Ekran Olabilen Çoklu Pencere Kapsayıcısı (Player Grid Container) -->
+            <div id="player-grid-container" class="flex-1 flex flex-col relative overflow-hidden bg-black">
+                
+                <!-- Tam Ekran Modunda Fare Hareketiyle Beliren Yüzen Hızlı Kontrol Çubuğu -->
+                <div id="fsFloatingBar" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-40 items-center gap-2 px-3 py-2 rounded-2xl bg-cinema-900/85 backdrop-blur-md border border-slate-700/80 shadow-2xl transition-all duration-300 opacity-0 -translate-y-4">
+                    <span id="fsActiveSlotLabel" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shrink-0">
+                        Aktif: Pencere 1
+                    </span>
+
+                    <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+
+                    <!-- Yüzen Düzen Seçici -->
+                    <div class="flex items-center gap-1">
+                        <button data-fs-layout="1" class="fs-layout-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-300 hover:bg-cinema-800 transition-colors" title="1 Ekran">1x1</button>
+                        <button data-fs-layout="2" class="fs-layout-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-300 hover:bg-cinema-800 transition-colors" title="2 Pencere Yan Yana">2x1</button>
+                        <button data-fs-layout="3" class="fs-layout-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-300 hover:bg-cinema-800 transition-colors" title="3 Pencere (1+2)">1+2</button>
+                        <button data-fs-layout="4" class="fs-layout-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-300 hover:bg-cinema-800 transition-colors" title="4 Pencere (2x2)">2x2</button>
+                    </div>
+
+                    <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+
+                    <!-- Yüzen Tekil Ses (Solo Audio) Butonu -->
+                    <button id="fsSoloAudioBtn" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-medium hover:bg-cyan-500/25 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                        </svg>
+                        <span id="fsSoloAudioText">Tekil Ses: Açık</span>
+                    </button>
+
+                    <!-- Tam Ekranda Hızlı Kanal Listesi Çekmecesi Aç/Kapa -->
+                    <button id="fsToggleDrawerBtn" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-slate-200 text-xs font-medium transition-colors">
+                        <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                        <span>Kanallar</span>
+                    </button>
+
+                    <div class="h-4 w-px bg-slate-700 mx-0.5"></div>
+
+                    <!-- Tam Ekrandan Çıkış Butonu -->
+                    <button id="fsExitBtn" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-semibold transition-colors" title="Tam Ekrandan Çık (ESC)">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        <span>Çıkış</span>
+                    </button>
+                </div>
+
+                <!-- Tam Ekran İçi Yüzen Kanal Seçici Çekmece (Overlay Drawer) -->
+                <div id="fsChannelDrawer" class="hidden fixed inset-y-4 left-4 w-80 max-w-[85vw] z-50 bg-cinema-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl flex-col overflow-hidden">
+                    <div class="p-3 border-b border-slate-800 flex items-center justify-between gap-2">
+                        <span class="text-xs font-semibold text-white">Hızlı Kanal Değiştir (<span id="fsDrawerTargetSlot" class="text-cyan-400">Pencere 1</span>)</span>
+                        <button id="fsCloseDrawerBtn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-cinema-800">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-2.5 border-b border-slate-800/80 space-y-2">
+                        <select id="fsSubSelect" class="w-full bg-cinema-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 focus:outline-none">
+                            <option value="ALL">Tüm Üyelikler</option>
+                        </select>
+                        <input type="text" id="fsSearchInput" placeholder="Kanal ara..." class="w-full bg-cinema-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500">
+                    </div>
+                    <div id="fsDrawerList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Tam ekran kanal listesi buraya dinamik dolacak -->
+                    </div>
+                </div>
+
+                <!-- Dinamik Çoklu Pencere Izgarası (Slots Container) -->
+                <div id="multiViewGrid" class="flex-1 p-2 sm:p-3 gap-2 sm:gap-3 layout-1 overflow-y-auto bg-black/40">
+                    <!-- 4 adet bağımsız oynatıcı yuvası JavaScript ile buraya oluşturulacak -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- M3U Üyelik Ekleme Modalı -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-cinema-900 border border-slate-700/80 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl transform transition-all">
+            
+            <!-- Modal Başlık -->
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <h3 class="text-base font-semibold text-white">Yeni IPTV Üyeliği Ekle (.M3U)</h3>
+                <button id="closeModalBtn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal İçerik -->
+            <div class="p-6 space-y-4">
+                
+                <!-- Üyelik Etiketi / Adı -->
+                <div>
+                    <label for="subNameInput" class="block text-xs font-medium text-slate-300 mb-1.5">Üyelik Adı (Örn: Üyelik 1, Ev IPTV, Spor Paketi)</label>
+                    <input type="text" id="subNameInput" placeholder="Üyelik 1" class="w-full bg-cinema-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+                </div>
+
+                <!-- 1. Seçenek: Bilgisayardan Dosya Yükle -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">1. Bilgisayardan .M3U / .M3U8 Dosyası Seçin (Önerilen)</label>
+                    <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-cyan-500/70 rounded-xl p-5 text-center cursor-pointer transition-colors bg-cinema-950/50 group">
+                        <input type="file" id="fileInput" accept=".m3u,.m3u8,text/plain" class="hidden">
+                        <div class="w-9 h-9 rounded-full bg-cinema-800 group-hover:bg-cyan-500/10 text-slate-400 group-hover:text-cyan-400 flex items-center justify-center mx-auto mb-2 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-medium text-slate-200">Dosyayı buraya sürükleyin veya <span class="text-cyan-400 underline">gözatın</span></p>
+                        <p class="text-xs text-slate-500 mt-1">Büyük listeler IndexedDB veritabanında güvenle saklanır</p>
+                    </div>
+                </div>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-slate-800"></div>
+                    <span class="flex-shrink mx-4 text-xs text-slate-500 uppercase">veya</span>
+                    <div class="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <!-- 2. Seçenek: M3U URL ile Yükle -->
+                <div>
+                    <label for="m3uUrlInput" class="block text-xs font-medium text-slate-300 mb-1.5">2. M3U Oynatma Listesi Bağlantısı (URL)</label>
+                    <div class="flex gap-2">
+                        <input type="url" id="m3uUrlInput" placeholder="http://ornek-iptv.com/get.php?username=..." class="flex-1 bg-cinema-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+                        <button id="fetchUrlBtn" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium transition-colors shrink-0">
+                            Getir
+                        </button>
+                    </div>
+                    <p id="urlStatusMsg" class="hidden text-xs mt-2 leading-relaxed"></p>
+                </div>
+
+                <!-- 3. Seçenek: Demo Listeleri -->
+                <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                    <span class="text-xs text-slate-400">Çoklu ekranı hemen test et:</span>
+                    <button id="modalDemoBtn" class="text-xs font-medium text-emerald-400 hover:text-emerald-300 underline">
+                        2 Demo Üyelik Yükle ve Başlat
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Kayıtlı Üyelikleri Yönetme Modalı -->
+    <div id="manageSubsModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-cinema-900 border border-slate-700/80 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <h3 class="text-base font-semibold text-white">Kayıtlı IPTV Üyelikleri</h3>
+                <button id="closeManageSubsBtn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-3 max-h-[60vh] overflow-y-auto" id="subscriptionsListContainer">
+                <!-- Üyelikler buraya listelenecek -->
+            </div>
+            <div class="px-6 py-3 bg-cinema-950/60 border-t border-slate-800 flex justify-between items-center">
+                <button id="deleteAllSubsBtn" class="text-xs text-rose-400 hover:text-rose-300 font-medium">Tüm Üyelikleri Sil</button>
+                <button onclick="openModal(); closeManageModal();" class="px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium">+ Yeni Üyelik Ekle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Drive Yedekleme ve Senkronizasyon Modalı -->
+    <div id="driveModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-cinema-900 border border-slate-700/80 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7.71 3.5L1.15 15l3.43 6L11.14 9.5 7.71 3.5zm1.42 0l6.56 11.5h6.86L15.99 3.5H9.13zm2.98 13l-3.43 6h13.72l3.43-6H12.11z"/>
+                    </svg>
+                    <h3 class="text-base font-semibold text-white">Google Drive Bulut Yedekleme</h3>
+                </div>
+                <button id="closeDriveModalBtn" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <!-- Bağlantı Durum Kartı -->
+                <div id="driveStatusCard" class="p-3.5 rounded-xl bg-cinema-950 border border-slate-800 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p id="driveConnectionStatus" class="text-xs font-semibold text-slate-300">Drive Bağlantısı: Kapalı</p>
+                        <p id="driveBackupInfo" class="text-[11px] text-slate-500 mt-0.5">Üyelikleriniz ve favorileriniz Google Drive'da şifresiz/güvenli JSON yedeği olarak tutulur.</p>
+                    </div>
+                    <button id="driveConnectBtn" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition-colors">
+                        Drive'a Bağlan
+                    </button>
+                </div>
+
+                <!-- Bulut Yedek İşlemleri -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button id="driveUploadBtn" disabled class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 disabled:opacity-40 disabled:pointer-events-none border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <span>Drive'a Şimdi Yedekle</span>
+                    </button>
+
+                    <button id="driveRestoreBtn" disabled class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 disabled:opacity-40 disabled:pointer-events-none border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span>Drive'dan Geri Yükle</span>
+                    </button>
+                </div>
+
+                <!-- Google Cloud Client ID Ayarı -->
+                <div class="pt-3 border-t border-slate-800/80 space-y-2">
+                    <label for="googleClientIdInput" class="block text-xs font-medium text-slate-300">
+                        Google Cloud OAuth Client ID (İsteğe Bağlı Kendi Anahtarınız)
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="text" id="googleClientIdInput" placeholder="1234567890-xxx.apps.googleusercontent.com" class="flex-1 bg-cinema-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                        <button id="saveClientIdBtn" class="px-3 py-1.5 rounded-xl bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors">
+                            Kaydet
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">
+                        Kendi Google Cloud projenizden <code class="text-slate-400">drive.appdata</code> kapsamlı bir Web Client ID oluşturup buraya kaydedebilirsiniz.
+                    </p>
+                </div>
+
+                <!-- Yerel JSON Yedek Dışa/İçe Aktarım (Korumalı / Hızlı Yedek) -->
+                <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <span class="text-[11px] text-slate-400">Hızlı Dosya Yedeği:</span>
+                    <div class="flex items-center gap-2">
+                        <button id="exportJsonBackupBtn" class="px-2.5 py-1.5 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-xs text-slate-200 font-medium transition-colors">
+                            JSON İndir
+                        </button>
+                        <button id="importJsonBackupBtn" class="px-2.5 py-1.5 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-xs text-cyan-300 font-medium transition-colors">
+                            JSON Yükle
+                        </button>
+                        <input type="file" id="jsonBackupFileInput" accept=".json,application/json" class="hidden">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bildirim Mesajı (Toast) -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 bg-cinema-800 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl text-xs sm:text-sm flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <span id="toastDot" class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        <span id="toastText">Bildirim mesajı</span>
+    </div>
+
+    <script>
+        /**
+         * NovaStream MULTI IPTV - Çoklu Üyelik & Çoklu Pencere Web Oynatıcı
+         * IndexedDB çoklu liste depolama, 4'e kadar bağımsız HLS/MPEG-TS oynatıcı motoru ve harici pencere (Pop-out) desteği.
+         */
+
+        // Üyelik Rozet Renk Paleti
+        const SUB_COLORS = [
+            { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border-cyan-500/30', dot: 'bg-cyan-400' },
+            { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/30', dot: 'bg-emerald-400' },
+            { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/30', dot: 'bg-purple-400' },
+            { bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/30', dot: 'bg-amber-400' },
+            { bg: 'bg-rose-500/15', text: 'text-rose-300', border: 'border-rose-500/30', dot: 'bg-rose-400' }
+        ];
+
+        // --- INDEXEDDB VERİTABANI YÖNETİCİSİ (Büyük M3U Listeleri İçin) ---
+        const DB_NAME = 'NovaStreamMultiDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'subscriptions';
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function dbSaveSubscription(subObj) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(subObj);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function dbGetAllSubscriptions() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const req = tx.objectStore(STORE_NAME).getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function dbDeleteSubscription(id) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).delete(id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function dbClearAllSubscriptions() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).clear();
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        // --- UYGULAMA DURUMU (STATE) ---
+        const state = {
+            subscriptions: [],      // [{ id, name, colorIndex, content, channelCount }]
+            allChannels: [],        // Tüm üyeliklerden birleştirilmiş kanallar
+            filteredChannels: [],   // Filtrelenmiş kanallar
+            favorites: new Set(),   // Favori kanal URL'leri
+            categories: new Map(),  // Kategori adı -> Kanal sayısı
+            selectedSubId: 'ALL',   // 'ALL' veya üyelik ID
+            selectedCategory: 'ALL',
+            activeTab: 'ALL',       // 'ALL' veya 'FAV'
+            searchQuery: '',
+            renderLimit: 100,
+            renderStep: 100,
+            
+            // Çoklu Pencere (Multi-View) Durumu
+            layoutCount: 1,         // 1, 2, 3 veya 4 pencere
+            activeSlotIndex: 0,     // 0, 1, 2 veya 3 (Seçili pencere)
+            soloAudio: true,        // Aktif pencere dışındakileri otomatik sustur
+            slots: [],              // 4 adet bağımsız oynatıcı slot nesnesi
+
+            // Google Drive Senkronizasyon Durumu
+            googleAccessToken: null,
+            googleClientId: ''
+        };
+
+        const DRIVE_BACKUP_FILENAME = 'novastream_iptv_backup.json';
+        const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+
+        // --- DOM REFERANSLARI ---
+        const dom = {
+            playerGridContainer: document.getElementById('player-grid-container'),
+            gridFullscreenBtn: document.getElementById('gridFullscreenBtn'),
+            fsFloatingBar: document.getElementById('fsFloatingBar'),
+            fsActiveSlotLabel: document.getElementById('fsActiveSlotLabel'),
+            fsSoloAudioBtn: document.getElementById('fsSoloAudioBtn'),
+            fsSoloAudioText: document.getElementById('fsSoloAudioText'),
+            fsToggleDrawerBtn: document.getElementById('fsToggleDrawerBtn'),
+            fsExitBtn: document.getElementById('fsExitBtn'),
+            fsChannelDrawer: document.getElementById('fsChannelDrawer'),
+            fsDrawerTargetSlot: document.getElementById('fsDrawerTargetSlot'),
+            fsCloseDrawerBtn: document.getElementById('fsCloseDrawerBtn'),
+            fsSubSelect: document.getElementById('fsSubSelect'),
+            fsSearchInput: document.getElementById('fsSearchInput'),
+            fsDrawerList: document.getElementById('fsDrawerList'),
+
+            multiViewGrid: document.getElementById('multiViewGrid'),
+            activeSlotBanner: document.getElementById('activeSlotBanner'),
+            soloAudioToggleBtn: document.getElementById('soloAudioToggleBtn'),
+            stopAllStreamsBtn: document.getElementById('stopAllStreamsBtn'),
+            
+            // Kenar Çubuğu & Filtreler
+            sidebar: document.getElementById('sidebar'),
+            toggleSidebarBtn: document.getElementById('toggleSidebarBtn'),
+            subscriptionSelect: document.getElementById('subscriptionSelect'),
+            manageSubsBtn: document.getElementById('manageSubsBtn'),
+            searchInput: document.getElementById('searchInput'),
+            clearSearchBtn: document.getElementById('clearSearchBtn'),
+            tabAllBtn: document.getElementById('tabAllBtn'),
+            tabFavBtn: document.getElementById('tabFavBtn'),
+            favCountBadge: document.getElementById('favCountBadge'),
+            categorySelect: document.getElementById('categorySelect'),
+            emptySidebarState: document.getElementById('emptySidebarState'),
+            channelItemsWrapper: document.getElementById('channelItemsWrapper'),
+            loadMoreWrapper: document.getElementById('loadMoreWrapper'),
+            loadMoreBtn: document.getElementById('loadMoreBtn'),
+            playlistStatsBadge: document.getElementById('playlistStatsBadge'),
+            totalChannelsCount: document.getElementById('totalChannelsCount'),
+
+            // Üyelik Ekleme Modalı
+            uploadModal: document.getElementById('uploadModal'),
+            openUploadModalBtn: document.getElementById('openUploadModalBtn'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            subNameInput: document.getElementById('subNameInput'),
+            dropZone: document.getElementById('dropZone'),
+            fileInput: document.getElementById('fileInput'),
+            m3uUrlInput: document.getElementById('m3uUrlInput'),
+            fetchUrlBtn: document.getElementById('fetchUrlBtn'),
+            urlStatusMsg: document.getElementById('urlStatusMsg'),
+            modalDemoBtn: document.getElementById('modalDemoBtn'),
+
+            // Üyelik Yönetimi Modalı
+            manageSubsModal: document.getElementById('manageSubsModal'),
+            closeManageSubsBtn: document.getElementById('closeManageSubsBtn'),
+            subscriptionsListContainer: document.getElementById('subscriptionsListContainer'),
+            deleteAllSubsBtn: document.getElementById('deleteAllSubsBtn'),
+
+            // Google Drive Yedekleme Modalı
+            driveSyncBtn: document.getElementById('driveSyncBtn'),
+            driveBtnLabel: document.getElementById('driveBtnLabel'),
+            driveModal: document.getElementById('driveModal'),
+            closeDriveModalBtn: document.getElementById('closeDriveModalBtn'),
+            driveConnectionStatus: document.getElementById('driveConnectionStatus'),
+            driveBackupInfo: document.getElementById('driveBackupInfo'),
+            driveConnectBtn: document.getElementById('driveConnectBtn'),
+            driveUploadBtn: document.getElementById('driveUploadBtn'),
+            driveRestoreBtn: document.getElementById('driveRestoreBtn'),
+            googleClientIdInput: document.getElementById('googleClientIdInput'),
+            saveClientIdBtn: document.getElementById('saveClientIdBtn'),
+            exportJsonBackupBtn: document.getElementById('exportJsonBackupBtn'),
+            importJsonBackupBtn: document.getElementById('importJsonBackupBtn'),
+            jsonBackupFileInput: document.getElementById('jsonBackupFileInput'),
+
+            // Bildirim
+            toastNotification: document.getElementById('toastNotification'),
+            toastText: document.getElementById('toastText'),
+            toastDot: document.getElementById('toastDot')
+        };
+
+        // --- BAŞLANGIÇ ---
+        async function init() {
+            loadFavoritesFromStorage();
+            loadGoogleClientIdFromStorage();
+            createPlayerSlots();
+            setLayout(1);
+            setupEventListeners();
+
+            try {
+                const savedSubs = await dbGetAllSubscriptions();
+                if (savedSubs.length > 0) {
+                    state.subscriptions = savedSubs;
+                    rebuildAllChannels();
+                }
+            } catch (e) {
+                console.warn('IndexedDB okuma hatası:', e);
+            }
+        }
+
+        // --- BİLDİRİM (TOAST) ---
+        let toastTimeout;
+        function showToast(message, type = 'info') {
+            dom.toastText.textContent = message;
+            dom.toastDot.className = 'w-2 h-2 rounded-full ' + (
+                type === 'error' ? 'bg-rose-500' : 
+                type === 'success' ? 'bg-emerald-400' : 'bg-cyan-400'
+            );
+            dom.toastNotification.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                dom.toastNotification.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        // --- 4 BAĞIMSIZ OYNATICI PENCERESİ (SLOT) OLUŞTURMA ---
+        function createPlayerSlots() {
+            dom.multiViewGrid.innerHTML = '';
+            state.slots = [];
+
+            for (let i = 0; i < 4; i++) {
+                const slotEl = document.createElement('div');
+                slotEl.className = `player-slot idle relative bg-cinema-900 rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-center items-center group transition-all duration-200 min-h-[200px]`;
+                slotEl.dataset.slotIndex = i;
+
+                slotEl.innerHTML = `
+                    <!-- Video Elementi -->
+                    <video class="slot-video w-full h-full object-contain bg-black" playsinline></video>
+
+                    <!-- Üst Bilgi Rozeti (Pencere No, Kanal Adı, Üyelik Etiketi) -->
+                    <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 z-10 pointer-events-none">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="slot-number-badge px-2 py-0.5 rounded-md text-[11px] font-bold bg-cinema-950/85 border border-slate-700 text-slate-300 backdrop-blur-md shrink-0">
+                                Pencere ${i + 1}
+                            </span>
+                            <span class="slot-channel-badge hidden px-2.5 py-0.5 rounded-md text-xs font-semibold bg-black/75 text-white backdrop-blur-md truncate border border-white/10">
+                            </span>
+                            <span class="slot-sub-badge hidden px-2 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-md shrink-0 border">
+                            </span>
+                        </div>
+                        <span class="slot-live-badge hidden items-center gap-1 px-2 py-0.5 rounded bg-rose-600/80 text-white text-[10px] font-bold tracking-wider uppercase shrink-0">
+                            <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> CANLI
+                        </span>
+                    </div>
+
+                    <!-- Boş / Bekleme Ekranı -->
+                    <div class="slot-idle-overlay absolute inset-0 bg-gradient-to-b from-cinema-900/95 to-cinema-950 flex flex-col items-center justify-center p-4 text-center z-0">
+                        <div class="w-11 h-11 rounded-xl bg-cinema-800/80 border border-slate-700/70 flex items-center justify-center mb-2.5 text-slate-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-xs sm:text-sm font-medium text-slate-300">Pencere ${i + 1} Boş</p>
+                        <p class="text-[11px] text-slate-500 mt-1 max-w-[220px]">Bu pencereye tıklayıp aktif hale getirin ve soldan bir kanal seçin.</p>
+                    </div>
+
+                    <!-- Yükleniyor Göstergesi -->
+                    <div class="slot-loading-overlay hidden absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center z-10 pointer-events-none">
+                        <div class="w-9 h-9 border-3 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-2"></div>
+                        <span class="text-xs font-medium text-white">Bağlanıyor...</span>
+                    </div>
+
+                    <!-- Hata Ekranı -->
+                    <div class="slot-error-overlay hidden absolute inset-0 bg-cinema-950/95 p-4 flex flex-col items-center justify-center text-center z-20">
+                        <p class="text-xs font-semibold text-rose-400 mb-1">Yayın Açılamadı</p>
+                        <p class="slot-error-msg text-[11px] text-slate-400 mb-3 max-w-xs line-clamp-2">Sunucu bağlantıyı reddetti veya CORS engeli var.</p>
+                        <div class="flex items-center gap-2">
+                            <button class="slot-retry-btn px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium">Tekrar Dene</button>
+                            <button class="slot-popout-err-btn px-3 py-1.5 rounded-lg bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-slate-200 text-xs font-medium">Dış Pencerede Aç</button>
+                        </div>
+                    </div>
+
+                    <!-- Alt Kontrol Çubuğu -->
+                    <div class="slot-controls hidden absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent pt-8 pb-2.5 px-3 flex items-center justify-between gap-2 opacity-0 transform translate-y-1 transition-all duration-200 z-10">
+                        <div class="flex items-center gap-2">
+                            <button class="slot-play-btn text-white hover:text-cyan-400 p-1" title="Oynat / Duraklat">
+                                <svg class="icon-play w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                <svg class="icon-pause w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            </button>
+
+                            <button class="slot-reload-btn text-slate-300 hover:text-cyan-400 p-1" title="Yayını Yenile">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                            </button>
+
+                            <div class="flex items-center gap-1.5">
+                                <button class="slot-mute-btn text-white hover:text-cyan-400 p-1" title="Sesi Aç / Kapat">
+                                    <svg class="icon-vol w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                                    </svg>
+                                    <svg class="icon-mute w-4 h-4 hidden text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
+                                    </svg>
+                                </button>
+                                <input type="range" class="slot-vol-slider w-14 sm:w-16" min="0" max="1" step="0.05" value="1">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <!-- Yeni Tarayıcı Penceresinde Aç (Pop-out) -->
+                            <button class="slot-popout-btn text-slate-300 hover:text-emerald-400 p-1" title="Ayrı Tarayıcı Penceresinde Aç (2. Monitör İçin)">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </button>
+
+                            <!-- Tam Ekran -->
+                            <button class="slot-fs-btn text-slate-300 hover:text-cyan-400 p-1" title="Bu Pencereyi Tam Ekran Yap">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                                </svg>
+                            </button>
+
+                            <!-- Yayını Kapat -->
+                            <button class="slot-stop-btn text-slate-400 hover:text-rose-400 p-1" title="Bu Penceredeki Yayını Kapat">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const slotObj = {
+                    index: i,
+                    el: slotEl,
+                    video: slotEl.querySelector('.slot-video'),
+                    numberBadge: slotEl.querySelector('.slot-number-badge'),
+                    channelBadge: slotEl.querySelector('.slot-channel-badge'),
+                    subBadge: slotEl.querySelector('.slot-sub-badge'),
+                    liveBadge: slotEl.querySelector('.slot-live-badge'),
+                    idleOverlay: slotEl.querySelector('.slot-idle-overlay'),
+                    loadingOverlay: slotEl.querySelector('.slot-loading-overlay'),
+                    errorOverlay: slotEl.querySelector('.slot-error-overlay'),
+                    errorMsg: slotEl.querySelector('.slot-error-msg'),
+                    controls: slotEl.querySelector('.slot-controls'),
+                    iconPlay: slotEl.querySelector('.icon-play'),
+                    iconPause: slotEl.querySelector('.icon-pause'),
+                    iconVol: slotEl.querySelector('.icon-vol'),
+                    iconMute: slotEl.querySelector('.icon-mute'),
+                    volSlider: slotEl.querySelector('.slot-vol-slider'),
+                    channel: null,
+                    hls: null,
+                    mpegts: null
+                };
+
+                // Slota tıklayınca aktif pencere yap
+                slotEl.addEventListener('mousedown', () => setActiveSlot(i));
+
+                // Sürükle-bırak ile kanalı doğrudan bu pencereye atma
+                slotEl.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    slotEl.classList.add('ring-2', 'ring-emerald-400');
+                });
+                slotEl.addEventListener('dragleave', () => {
+                    slotEl.classList.remove('ring-2', 'ring-emerald-400');
+                });
+                slotEl.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    slotEl.classList.remove('ring-2', 'ring-emerald-400');
+                    const chUid = e.dataTransfer.getData('text/plain');
+                    const droppedChannel = state.allChannels.find(c => c.uid === chUid);
+                    if (droppedChannel) {
+                        setActiveSlot(i);
+                        playChannelInSlot(i, droppedChannel);
+                    }
+                });
+
+                // Slot Kontrol Butonları
+                slotEl.querySelector('.slot-play-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    slotObj.video.paused ? slotObj.video.play() : slotObj.video.pause();
+                });
+
+                slotEl.querySelector('.slot-reload-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (slotObj.channel) playChannelInSlot(i, slotObj.channel);
+                });
+
+                slotEl.querySelector('.slot-retry-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (slotObj.channel) playChannelInSlot(i, slotObj.channel);
+                });
+
+                slotEl.querySelector('.slot-mute-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setSlotMute(i, !slotObj.video.muted);
+                });
+
+                slotObj.volSlider.addEventListener('input', (e) => {
+                    e.stopPropagation();
+                    slotObj.video.volume = e.target.value;
+                    setSlotMute(i, e.target.value == 0);
+                });
+
+                slotEl.querySelector('.slot-popout-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (slotObj.channel) openPopoutWindow(slotObj.channel);
+                });
+
+                slotEl.querySelector('.slot-popout-err-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (slotObj.channel) openPopoutWindow(slotObj.channel);
+                });
+
+                slotEl.querySelector('.slot-fs-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!document.fullscreenElement) slotEl.requestFullscreen().catch(() => {});
+                    else document.exitFullscreen().catch(() => {});
+                });
+
+                // Çift tıklama ile doğrudan tüm çoklu ekranı tam ekran yap / çık
+                slotEl.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    toggleGridFullscreen();
+                });
+
+                slotEl.querySelector('.slot-stop-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    stopSlot(i);
+                });
+
+                // Video olayları
+                slotObj.video.addEventListener('play', () => {
+                    slotObj.iconPlay.classList.add('hidden');
+                    slotObj.iconPause.classList.remove('hidden');
+                    slotObj.loadingOverlay.classList.add('hidden');
+                    slotEl.classList.remove('paused');
+                });
+                slotObj.video.addEventListener('pause', () => {
+                    slotObj.iconPlay.classList.remove('hidden');
+                    slotObj.iconPause.classList.add('hidden');
+                    slotEl.classList.add('paused');
+                });
+                slotObj.video.addEventListener('waiting', () => {
+                    if (slotObj.channel) slotObj.loadingOverlay.classList.remove('hidden');
+                });
+                slotObj.video.addEventListener('playing', () => {
+                    slotObj.loadingOverlay.classList.add('hidden');
+                });
+
+                state.slots.push(slotObj);
+                dom.multiViewGrid.appendChild(slotEl);
+            }
+
+            setActiveSlot(0);
+        }
+
+        // --- DÜZEN VE AKTİF PENCERE YÖNETİMİ ---
+        function setLayout(count) {
+            state.layoutCount = count;
+            dom.multiViewGrid.className = `flex-1 p-2 sm:p-3 gap-2 sm:gap-3 layout-${count} overflow-y-auto bg-black/40`;
+
+            // Buton aktiflik görünümleri
+            document.querySelectorAll('.layout-btn').forEach(btn => {
+                const btnCount = parseInt(btn.dataset.layout, 10);
+                if (btnCount === count) {
+                    btn.className = 'layout-btn active flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-600 text-white transition-all shadow-md shadow-cyan-600/20';
+                } else {
+                    btn.className = 'layout-btn flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-cinema-800 transition-all';
+                }
+            });
+
+            // Tam ekran yüzen çubuk düzen butonlarını güncelle
+            document.querySelectorAll('.fs-layout-btn').forEach(btn => {
+                const btnCount = parseInt(btn.dataset.fsLayout, 10);
+                if (btnCount === count) {
+                    btn.className = 'fs-layout-btn px-2 py-1 rounded-lg text-xs font-semibold bg-cyan-600 text-white transition-colors';
+                } else {
+                    btn.className = 'fs-layout-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-300 hover:bg-cinema-800 transition-colors';
+                }
+            });
+
+            // Görünür slotları ayarla (Gizlenen slotların yayınını durdur)
+            state.slots.forEach((slot, idx) => {
+                if (idx < count) {
+                    slot.el.classList.remove('hidden');
+                } else {
+                    slot.el.classList.add('hidden');
+                    if (slot.channel) stopSlot(idx);
+                }
+            });
+
+            if (state.activeSlotIndex >= count) {
+                setActiveSlot(0);
+            }
+        }
+
+        function setActiveSlot(index) {
+            state.activeSlotIndex = index;
+            dom.activeSlotBanner.textContent = `Aktif: Pencere ${index + 1}`;
+            if (dom.fsActiveSlotLabel) dom.fsActiveSlotLabel.textContent = `Aktif: Pencere ${index + 1}`;
+            if (dom.fsDrawerTargetSlot) dom.fsDrawerTargetSlot.textContent = `Pencere ${index + 1}`;
+
+            state.slots.forEach((slot, idx) => {
+                if (idx === index) {
+                    slot.el.classList.add('ring-2', 'ring-cyan-500', 'border-cyan-500/60');
+                    slot.numberBadge.className = 'slot-number-badge px-2 py-0.5 rounded-md text-[11px] font-bold bg-cyan-600 text-white shadow-md shrink-0';
+                    if (state.soloAudio && slot.channel) {
+                        setSlotMute(idx, false);
+                    }
+                } else {
+                    slot.el.classList.remove('ring-2', 'ring-cyan-500', 'border-cyan-500/60');
+                    slot.numberBadge.className = 'slot-number-badge px-2 py-0.5 rounded-md text-[11px] font-bold bg-cinema-950/85 border border-slate-700 text-slate-300 backdrop-blur-md shrink-0';
+                    if (state.soloAudio && slot.channel) {
+                        setSlotMute(idx, true);
+                    }
+                }
+            });
+        }
+
+        // --- ÇOKLU PENCERE TAM EKRAN (GRID FULLSCREEN API) ---
+        let fsIdleTimer = null;
+
+        async function toggleGridFullscreen() {
+            try {
+                if (document.fullscreenElement === dom.playerGridContainer) {
+                    await document.exitFullscreen();
+                } else {
+                    if (document.fullscreenElement) {
+                        await document.exitFullscreen();
+                    }
+                    await dom.playerGridContainer.requestFullscreen();
+                }
+            } catch (err) {
+                showToast('Tarayıcı tam ekran izni vermedi. Lütfen ekrana tıklayıp tekrar deneyin.', 'error');
+            }
+        }
+
+        function showFsFloatingControls() {
+            if (document.fullscreenElement !== dom.playerGridContainer) return;
+            dom.fsFloatingBar.classList.remove('hidden');
+            dom.fsFloatingBar.classList.add('flex');
+            requestAnimationFrame(() => {
+                dom.fsFloatingBar.classList.remove('opacity-0', '-translate-y-4');
+            });
+
+            clearTimeout(fsIdleTimer);
+            fsIdleTimer = setTimeout(() => {
+                if (!dom.fsChannelDrawer.classList.contains('hidden')) return;
+                dom.fsFloatingBar.classList.add('opacity-0', '-translate-y-4');
+                setTimeout(() => {
+                    if (dom.fsFloatingBar.classList.contains('opacity-0')) {
+                        dom.fsFloatingBar.classList.add('hidden');
+                        dom.fsFloatingBar.classList.remove('flex');
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function handleFullscreenStateChange() {
+            const isGridFs = document.fullscreenElement === dom.playerGridContainer;
+            if (isGridFs) {
+                populateFsDrawerFilters();
+                renderFsDrawerList();
+                showFsFloatingControls();
+            } else {
+                clearTimeout(fsIdleTimer);
+                dom.fsFloatingBar.classList.add('hidden', 'opacity-0', '-translate-y-4');
+                dom.fsFloatingBar.classList.remove('flex');
+                dom.fsChannelDrawer.classList.add('hidden');
+                dom.fsChannelDrawer.classList.remove('flex');
+            }
+        }
+
+        function populateFsDrawerFilters() {
+            dom.fsSubSelect.innerHTML = `<option value="ALL">Tüm Üyelikler (${state.allChannels.length})</option>`;
+            state.subscriptions.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub.id;
+                opt.textContent = `${sub.name} (${sub.channelCount})`;
+                dom.fsSubSelect.appendChild(opt);
+            });
+            dom.fsSubSelect.value = state.selectedSubId;
+        }
+
+        function renderFsDrawerList() {
+            const subFilter = dom.fsSubSelect.value;
+            const query = dom.fsSearchInput.value.toLowerCase().trim();
+            const list = dom.fsDrawerList;
+            list.innerHTML = '';
+
+            const matches = state.allChannels.filter(ch => {
+                if (subFilter !== 'ALL' && ch.subId !== subFilter) return false;
+                if (query && !ch.name.toLowerCase().includes(query)) return false;
+                return true;
+            }).slice(0, 120);
+
+            if (matches.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Kanal bulunamadı.</p>`;
+                return;
+            }
+
+            const frag = document.createDocumentFragment();
+            matches.forEach(ch => {
+                const subColor = SUB_COLORS[ch.subColorIndex % SUB_COLORS.length];
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-2 rounded-xl bg-cinema-800/60 hover:bg-cinema-800 border border-transparent hover:border-cyan-500/40 transition-all flex items-center justify-between gap-2';
+                btn.innerHTML = `
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-medium text-white truncate">${escapeHtml(ch.name)}</p>
+                        <p class="text-[10px] text-slate-400 truncate">${escapeHtml(ch.group)}</p>
+                    </div>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-medium border ${subColor.bg} ${subColor.text} ${subColor.border} shrink-0">
+                        ${escapeHtml(ch.subName)}
+                    </span>
+                `;
+                btn.addEventListener('click', () => {
+                    playChannelInSlot(state.activeSlotIndex, ch);
+                });
+                frag.appendChild(btn);
+            });
+            list.appendChild(frag);
+        }
+
+        function setSlotMute(index, muted) {
+            const slot = state.slots[index];
+            if (!slot) return;
+            slot.video.muted = muted;
+            slot.iconVol.classList.toggle('hidden', muted);
+            slot.iconMute.classList.toggle('hidden', !muted);
+        }
+
+        // --- SLOT İÇİNDE YAYIN OYNATMA MOTORU ---
+        function destroySlotEngines(slot) {
+            if (slot.hls) {
+                slot.hls.destroy();
+                slot.hls = null;
+            }
+            if (slot.mpegts) {
+                slot.mpegts.pause();
+                slot.mpegts.unload();
+                slot.mpegts.detachMediaElement();
+                slot.mpegts.destroy();
+                slot.mpegts = null;
+            }
+            slot.video.removeAttribute('src');
+            slot.video.load();
+        }
+
+        function stopSlot(index) {
+            const slot = state.slots[index];
+            if (!slot) return;
+            destroySlotEngines(slot);
+            slot.channel = null;
+            slot.el.classList.add('idle');
+            slot.idleOverlay.classList.remove('hidden');
+            slot.loadingOverlay.classList.add('hidden');
+            slot.errorOverlay.classList.add('hidden');
+            slot.controls.classList.add('hidden');
+            slot.channelBadge.classList.add('hidden');
+            slot.subBadge.classList.add('hidden');
+            slot.liveBadge.classList.add('hidden');
+            slot.liveBadge.classList.remove('flex');
+            renderChannelList();
+        }
+
+        function playChannelInSlot(index, channel) {
+            const slot = state.slots[index];
+            if (!slot) return;
+
+            destroySlotEngines(slot);
+            slot.channel = channel;
+
+            // Arayüz güncellemeleri
+            slot.el.classList.remove('idle');
+            slot.idleOverlay.classList.add('hidden');
+            slot.errorOverlay.classList.add('hidden');
+            slot.loadingOverlay.classList.remove('hidden');
+            slot.controls.classList.remove('hidden');
+
+            slot.channelBadge.textContent = channel.name;
+            slot.channelBadge.classList.remove('hidden');
+
+            const color = SUB_COLORS[channel.subColorIndex % SUB_COLORS.length];
+            slot.subBadge.textContent = channel.subName;
+            slot.subBadge.className = `slot-sub-badge px-2 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-md shrink-0 border ${color.bg} ${color.text} ${color.border}`;
+
+            slot.liveBadge.classList.remove('hidden');
+            slot.liveBadge.classList.add('flex');
+
+            // Tekil ses modu açıksa sadece aktif pencerenin sesini aç
+            if (state.soloAudio) {
+                state.slots.forEach((s, idx) => setSlotMute(idx, idx !== index));
+            } else {
+                setSlotMute(index, false);
+            }
+
+            renderChannelList();
+
+            const url = channel.url;
+            if (!url.toLowerCase().endsWith('.ts') && Hls.isSupported()) {
+                const hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 60
+                });
+                slot.hls = hls;
+                hls.loadSource(url);
+                hls.attachMedia(slot.video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    slot.loadingOverlay.classList.add('hidden');
+                    slot.video.play().catch(() => {
+                        slot.iconPlay.classList.remove('hidden');
+                        slot.iconPause.classList.add('hidden');
+                    });
+                });
+
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        hls.destroy();
+                        slot.hls = null;
+                        trySlotMpegTsOrNative(slot, url);
+                    }
+                });
+            } else {
+                trySlotMpegTsOrNative(slot, url);
+            }
+        }
+
+        function trySlotMpegTsOrNative(slot, url) {
+            if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback && !url.toLowerCase().includes('.m3u8')) {
+                try {
+                    const player = mpegts.createPlayer({ type: 'mse', isLive: true, url: url });
+                    slot.mpegts = player;
+                    player.attachMediaElement(slot.video);
+                    player.load();
+                    player.on(mpegts.Events.ERROR, () => {
+                        slot.loadingOverlay.classList.add('hidden');
+                        slot.errorMsg.textContent = 'MPEG-TS akışı çözümlenemedi veya sunucu bağlantıyı reddetti.';
+                        slot.errorOverlay.classList.remove('hidden');
+                    });
+                    slot.video.play().then(() => {
+                        slot.loadingOverlay.classList.add('hidden');
+                    }).catch(() => {
+                        slot.loadingOverlay.classList.add('hidden');
+                    });
+                    return;
+                } catch (e) {}
+            }
+
+            slot.video.src = url;
+            slot.video.play().then(() => {
+                slot.loadingOverlay.classList.add('hidden');
+            }).catch(() => {
+                slot.loadingOverlay.classList.add('hidden');
+                slot.errorMsg.textContent = 'Tarayıcı bu yayını doğrudan oynatamadı (CORS veya format engeli).';
+                slot.errorOverlay.classList.remove('hidden');
+            });
+        }
+
+        // --- HARİCİ TARAYICI PENCERESİNDE AÇMA (POP-OUT WINDOW) ---
+        function openPopoutWindow(channel) {
+            const popup = window.open('', '_blank', 'width=854,height=480,menubar=no,toolbar=no,location=no,status=no');
+            if (!popup) {
+                showToast('Tarayıcı açılır pencereyi (Pop-up) engelledi. Lütfen izin verin.', 'error');
+                return;
+            }
+
+            const safeName = escapeHtml(channel.name);
+            const safeSub = escapeHtml(channel.subName);
+            const safeUrl = channel.url.replace(/"/g, '&quot;');
+
+            popup.document.write(`<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>${safeName} (${safeSub}) - NovaStream Pop-out</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"><\/script>
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        .top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 10px 14px; background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent); display: flex; justify-content: space-between; align-items: center; z-index: 10; pointer-events: none; }
+        .badge { background: rgba(6, 182, 212, 0.25); border: 1px solid rgba(6, 182, 212, 0.5); color: #67e8f9; padding: 2px 8px; border-radius: 6px; font-size: 11px; margin-left: 8px; }
         video { width: 100%; height: 100%; object-fit: contain; }
-        .empty-msg { position: absolute; color: #64748b; font-size: 12px; text-align: center; padding: 12px; pointer-events: none; }
-        
-        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
-        .modal.hidden { display: none; }
-        .modal-box { background: var(--panel); border: 1px solid #334155; border-radius: 12px; width: 100%; max-width: 400px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .modal-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-        .file-label { display: block; border: 1.5px dashed #475569; border-radius: 8px; padding: 14px; text-align: center; font-size: 12px; cursor: pointer; color: #cbd5e1; }
-        .hint { font-size: 11px; color: var(--muted); line-height: 1.4; }
     </style>
 </head>
 <body>
-
-<header>
-    <div class="row">
-        <button id="menuBtn">☰ Kanallar</button>
-        <strong style="font-size:14px; color:#06b6d4;">NovaStream</strong>
+    <div class="top-bar">
+        <div><strong>${safeName}</strong><span class="badge">${safeSub}</span></div>
     </div>
-    <div class="row">
-        <button onclick="setGrid(1)" id="gBtn1" class="primary">1x1</button>
-        <button onclick="setGrid(2)" id="gBtn2">2x1</button>
-        <button onclick="setGrid(3)" id="gBtn3">1+2</button>
-        <button onclick="setGrid(4)" id="gBtn4">2x2</button>
-    </div>
-    <div class="row">
-        <button class="primary" onclick="openM('addModal')">+ Liste</button>
-        <button onclick="openM('bakModal')">Yedek</button>
-        <button onclick="toggleFS()">⛶</button>
-    </div>
-</header>
-
-<div class="main">
-    <aside id="sidebar">
-        <div class="filters">
-            <div class="row">
-                <select id="accSelect" onchange="renderList()"><option value="ALL">Tüm Üyelikler</option></select>
-                <button id="delAccBtn" class="danger" style="display:none;" onclick="delAccount()">Sil</button>
-            </div>
-            <select id="grpSelect" onchange="renderList()"><option value="ALL">Tüm Kategoriler</option></select>
-            <input type="text" id="searchBox" oninput="renderList()" placeholder="Kanal adı ara...">
-            <div class="row" style="justify-content:space-between; font-size:11px; color:var(--muted);">
-                <span id="countTxt">0 kanal</span>
-                <span id="favToggle" style="color:#fbbf24; cursor:pointer;" onclick="toggleFavFilter()">★ Favoriler</span>
-            </div>
-        </div>
-        <div class="ch-list" id="chList"></div>
-    </aside>
-
-    <div class="stage grid-1" id="stage"></div>
-</div>
-
-<!-- Liste Ekle Modal -->
-<div class="modal hidden" id="addModal">
-    <div class="modal-box">
-        <div class="modal-head">
-            <span>M3U Listesi / Üyelik Ekle</span>
-            <button onclick="closeM('addModal')">✕</button>
-        </div>
-        <input type="text" id="accName" placeholder="Liste Adı (Örn: Spor, Ev IPTV)">
-        <div class="row">
-            <input type="url" id="m3uUrl" placeholder="https://... M3U Bağlantısı">
-            <button class="primary" id="urlLoadBtn" onclick="loadUrl()">Ekle</button>
-        </div>
-        <p class="hint">URL doğrudan veya proxy üzerinden çekilemezse linki indirip aşağıdan .m3u dosyası seçebilirsiniz.</p>
-        <label class="file-label">
-            Telefondan / Bilgisayardan <b>.m3u</b> Dosyası Seç
-            <input type="file" accept=".m3u,.m3u8,.txt" style="display:none;" onchange="loadFile(event)">
-        </label>
-        <button onclick="loadDemo()">Ücretsiz Test Kanallarını Yükle</button>
-    </div>
-</div>
-
-<!-- Yedek Modal -->
-<div class="modal hidden" id="bakModal">
-    <div class="modal-box">
-        <div class="modal-head">
-            <span>Yedekleme (JSON)</span>
-            <button onclick="closeM('bakModal')">✕</button>
-        </div>
-        <button class="primary" onclick="exportJson()">Yedeği Cihaza İndir</button>
-        <label class="file-label">
-            Yedek Dosyası (.json) Geri Yükle
-            <input type="file" accept=".json" style="display:none;" onchange="importJson(event)">
-        </label>
-    </div>
-</div>
-
-<script>
-    let db = null;
-    let app = { accounts: [], channels: [], favs: [], grid: 1, active: 0, solo: null, favOnly: false, slots: [null, null, null, null] };
-    let players = [null, null, null, null];
-
-    function initDB() {
-        return new Promise(res => {
-            const req = indexedDB.open('NovaStreamCleanDB', 1);
-            req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
-            req.onsuccess = e => { db = e.target.result; res(); };
-            req.onerror = () => res();
-        });
-    }
-
-    function save() {
-        if (!db) return;
-        const tx = db.transaction('kv', 'readwrite');
-        tx.objectStore('kv').put({ accounts: app.accounts, channels: app.channels, favs: app.favs, grid: app.grid, slots: app.slots }, 'state');
-    }
-
-    function load() {
-        return new Promise(res => {
-            if (!db) return res(null);
-            const tx = db.transaction('kv', 'readonly');
-            const r = tx.objectStore('kv').get('state');
-            r.onsuccess = () => res(r.result);
-            r.onerror = () => res(null);
-        });
-    }
-
-    document.getElementById('menuBtn').onclick = () => {
-        document.getElementById('sidebar').classList.toggle('closed');
-    };
-
-    function openM(id) { document.getElementById(id).classList.remove('hidden'); }
-    function closeM(id) { document.getElementById(id).classList.add('hidden'); }
-
-    function parseM3U(txt, accId, accName) {
-        const lines = txt.split(/\r?\n/);
-        const out = [];
-        let info = null;
-        for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-            if (line.startsWith('#EXTINF:')) {
-                const nm = line.match(/,(.*)$/);
-                const gr = line.match(/group-title="([^"]*)"/i);
-                info = { name: nm ? nm[1].trim() : 'Kanal', group: (gr && gr[1].trim()) ? gr[1].trim() : 'Genel' };
-            } else if (!line.startsWith('#') && info) {
-                out.push({ id: accId + '_' + out.length, accId, accName, name: info.name, group: info.group, url: line });
-                info = null;
-            }
-        }
-        return out;
-    }
-
-    function addPlaylist(txt, name) {
-        const accId = 'a_' + Date.now();
-        const chs = parseM3U(txt, accId, name);
-        if (!chs.length) return alert('Liste içinde geçerli kanal bulunamadı.');
-        app.accounts.push({ id: accId, name });
-        app.channels = app.channels.concat(chs);
-        save();
-        updateFilters();
-        renderList();
-        closeM('addModal');
-    }
-
-    async function fetchTextWithFallback(url) {
-        const attempts = [
-            url,
-            'https://corsproxy.io/?' + encodeURIComponent(url),
-            'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
-        ];
-        let lastErr = null;
-        for (const target of attempts) {
-            try {
-                const r = await fetch(target);
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const txt = await r.text();
-                if (txt && txt.trim().length > 10) return txt;
-            } catch (e) {
-                lastErr = e;
-            }
-        }
-        throw lastErr || new Error('Bağlantı başarısız');
-    }
-
-    async function loadUrl() {
-        const u = document.getElementById('m3uUrl').value.trim();
-        const n = document.getElementById('accName').value.trim() || 'Liste ' + (app.accounts.length + 1);
-        const btn = document.getElementById('urlLoadBtn');
-        if (!u) return alert('Lütfen bir M3U bağlantısı girin.');
-        btn.disabled = true;
-        btn.textContent = '...';
-        try {
-            const txt = await fetchTextWithFallback(u);
-            addPlaylist(txt, n);
-        } catch {
-            alert('Bu bağlantı sunucu kısıtlaması (CORS / ağ / HTTP) nedeniyle doğrudan çekilemedi. Bağlantıyı indirip ".m3u Dosyası Seç" ile yükleyebilirsiniz.');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Ekle';
-        }
-    }
-
-    function loadFile(e) {
-        const f = e.target.files[0];
-        if (!f) return;
-        const n = document.getElementById('accName').value.trim() || f.name.replace(/\.[^/.]+$/, '');
-        const rd = new FileReader();
-        rd.onload = ev => addPlaylist(ev.target.result, n);
-        rd.readAsText(f);
-        e.target.value = '';
-    }
-
-    function loadDemo() {
-        const demo = `#EXTM3U
-#EXTINF:-1 group-title="Haber",DW English HD
-https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8
-#EXTINF:-1 group-title="Haber",France 24 English
-https://stream.france24.com/hls/live/2037218/F24_EN_HI_HLS/master.m3u8
-#EXTINF:-1 group-title="Test",Big Buck Bunny HD
-https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`;
-        addPlaylist(demo, 'Demo Kanallar');
-    }
-
-    function updateFilters() {
-        const aSel = document.getElementById('accSelect');
-        aSel.innerHTML = '<option value="ALL">Tüm Üyelikler</option>' + app.accounts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
-        const gSel = document.getElementById('grpSelect');
-        const grps = [...new Set(app.channels.map(c => c.group))].sort();
-        gSel.innerHTML = '<option value="ALL">Tüm Kategoriler</option>' + grps.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
-    }
-
-    function delAccount() {
-        const id = document.getElementById('accSelect').value;
-        if (id === 'ALL') return;
-        app.accounts = app.accounts.filter(a => a.id !== id);
-        app.channels = app.channels.filter(c => c.accId !== id);
-        save();
-        updateFilters();
-        renderList();
-    }
-
-    function toggleFavFilter() {
-        app.favOnly = !app.favOnly;
-        document.getElementById('favToggle').style.textDecoration = app.favOnly ? 'underline' : 'none';
-        renderList();
-    }
-
-    function toggleFav(id, e) {
-        e.stopPropagation();
-        if (app.favs.includes(id)) app.favs = app.favs.filter(x => x !== id);
-        else app.favs.push(id);
-        save();
-        renderList();
-    }
-
-    function renderList() {
-        const acc = document.getElementById('accSelect').value;
-        const grp = document.getElementById('grpSelect').value;
-        const q = document.getElementById('searchBox').value.toLowerCase().trim();
-        document.getElementById('delAccBtn').style.display = acc === 'ALL' ? 'none' : 'inline-block';
-
-        const list = app.channels.filter(c => {
-            if (acc !== 'ALL' && c.accId !== acc) return false;
-            if (grp !== 'ALL' && c.group !== grp) return false;
-            if (app.favOnly && !app.favs.includes(c.id)) return false;
-            if (q && !c.name.toLowerCase().includes(q)) return false;
-            return true;
-        });
-
-        document.getElementById('countTxt').textContent = list.length + ' kanal';
-        const box = document.getElementById('chList');
-        if (!list.length) {
-            box.innerHTML = '<div style="padding:20px; text-align:center; font-size:12px; color:#64748b;">Kanal yok. Üstteki <b>+ Liste</b> butonundan M3U ekleyin.</div>';
-            return;
-        }
-        box.innerHTML = list.slice(0, 250).map(c => {
-            const isF = app.favs.includes(c.id);
-            return `<div class="ch-item" onclick="playCh('${c.id}')">
-                <div class="ch-info">
-                    <div class="ch-name">${esc(c.name)}</div>
-                    <div class="ch-meta">${esc(c.group)} • ${esc(c.accName)}</div>
-                </div>
-                <span onclick="toggleFav('${c.id}', event)" style="color:${isF ? '#fbbf24' : '#475569'}; font-size:16px; padding:0 4px;">★</span>
-            </div>`;
-        }).join('');
-    }
-
-    function setGrid(n) {
-        app.grid = n;
-        for (let i = 1; i <= 4; i++) {
-            document.getElementById('gBtn' + i).className = (i === n) ? 'primary' : '';
-        }
-        if (app.active >= n) app.active = 0;
-        buildStage();
-        save();
-    }
-
-    function setSlotStatus(i, msg) {
-        const el = document.getElementById('status_' + i);
-        if (el) el.textContent = msg || '';
-    }
-
-    function buildStage() {
-        const st = document.getElementById('stage');
-        st.className = 'stage grid-' + app.grid;
-        for (let i = app.grid; i < 4; i++) stopPlayer(i);
-        st.innerHTML = '';
-
-        for (let i = 0; i < app.grid; i++) {
-            const ch = app.slots[i];
-            const div = document.createElement('div');
-            div.className = `slot slot-${i} ${app.active === i ? 'active' : ''}`;
-            div.onclick = () => { app.active = i; document.querySelectorAll('.slot').forEach((s, idx) => s.classList.toggle('active', idx === i)); };
-            div.innerHTML = `
-                <div class="slot-bar">
-                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b>#${i + 1}</b> ${ch ? esc(ch.name) : 'Boş'}</span>
-                    <div class="row">
-                        <button style="padding:2px 6px; font-size:10px; ${app.solo === i ? 'background:#f59e0b; color:#000;' : ''}" onclick="toggleSolo(${i}, event)">SOLO</button>
-                        ${ch ? `<button class="danger" style="padding:2px 6px; font-size:10px;" onclick="clearSlot(${i}, event)">✕</button>` : ''}
-                    </div>
-                </div>
-                <div class="slot-body">
-                    <video id="vid_${i}" controls playsinline></video>
-                    <div class="empty-msg" id="status_${i}">${!ch ? 'Soldan kanal seçin' : 'Yayın bağlanıyor...'}</div>
-                </div>`;
-            st.appendChild(div);
-            if (ch) startStream(i, ch.url);
-        }
-        applySolo();
-    }
-
-    function playCh(id) {
-        const ch = app.channels.find(c => c.id === id);
-        if (!ch) return;
-        app.slots[app.active] = ch;
-        save();
-        buildStage();
-        if (window.innerWidth < 700) document.getElementById('sidebar').classList.add('closed');
-    }
-
-    function clearSlot(i, e) {
-        e.stopPropagation();
-        stopPlayer(i);
-        app.slots[i] = null;
-        if (app.solo === i) app.solo = null;
-        save();
-        buildStage();
-    }
-
-    function stopPlayer(i) {
-        if (players[i]) { try { players[i].destroy(); } catch {} players[i] = null; }
-        const v = document.getElementById('vid_' + i);
-        if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
-    }
-
-    function startStream(i, url) {
-        stopPlayer(i);
-        const v = document.getElementById('vid_' + i);
-        if (!v) return;
-
-        v.onplaying = () => setSlotStatus(i, '');
-        v.onerror = () => setSlotStatus(i, 'Yayın açılamadı (format, CORS veya bağlantı hatası)');
-
-        if (/\.ts(\?|$)/i.test(url) && window.mpegts && mpegts.getFeatureList().mseLivePlayback) {
-            const p = mpegts.createPlayer({ type: 'mpegts', isLive: true, url });
-            p.on(mpegts.Events.ERROR, () => setSlotStatus(i, 'TS akışı başlatılamadı'));
-            p.attachMediaElement(v); p.load(); p.play().catch(() => setSlotStatus(i, 'Oynatmak için videoya dokunun'));
-            players[i] = p;
-        } else if (window.Hls && Hls.isSupported() && !v.canPlayType('application/vnd.apple.mpegurl')) {
-            const h = new Hls({ enableWorker: true });
-            h.loadSource(url); h.attachMedia(v);
-            h.on(Hls.Events.MANIFEST_PARSED, () => {
-                setSlotStatus(i, '');
-                v.play().catch(() => setSlotStatus(i, 'Oynatmak için videoya dokunun'));
-            });
-            h.on(Hls.Events.ERROR, (_, data) => {
-                if (data && data.fatal) setSlotStatus(i, 'HLS yayını yüklenemedi (CORS / kaynak hatası)');
-            });
-            players[i] = h;
+    <video id="v" controls autoplay playsinline></video>
+    <script>
+        const url = "${safeUrl}";
+        const v = document.getElementById('v');
+        if (!url.toLowerCase().endsWith('.ts') && Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(url);
+            hls.attachMedia(v);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => v.play());
+        } else if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback && !url.toLowerCase().includes('.m3u8')) {
+            const p = mpegts.createPlayer({ type: 'mse', isLive: true, url: url });
+            p.attachMediaElement(v);
+            p.load();
+            v.play();
         } else {
             v.src = url;
-            v.play().catch(() => setSlotStatus(i, 'Oynatmak için videoya dokunun'));
+            v.play();
         }
-    }
-
-    function toggleSolo(i, e) {
-        e.stopPropagation();
-        app.solo = (app.solo === i) ? null : i;
-        buildStage();
-    }
-
-    function applySolo() {
-        for (let i = 0; i < 4; i++) {
-            const v = document.getElementById('vid_' + i);
-            if (v) v.muted = (app.solo !== null && app.solo !== i);
+    <\/script>
+</body>
+</html>`);
+            popup.document.close();
         }
-    }
 
-    function toggleFS() {
-        const st = document.getElementById('stage');
-        if (!document.fullscreenElement) st.requestFullscreen().catch(() => {});
-        else document.exitFullscreen().catch(() => {});
-    }
+        // --- M3U PARSER & ÇOKLU ÜYELİK YÖNETİMİ ---
+        function parseM3UChannels(content, subId, subName, subColorIndex) {
+            const lines = content.split(/\r?\n/);
+            const channels = [];
+            let currentMeta = null;
 
-    function exportJson() {
-        const b = new Blob([JSON.stringify(app)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(b);
-        a.download = 'novastream-yedek.json';
-        a.click();
-    }
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
 
-    function importJson(e) {
-        const f = e.target.files[0];
-        if (!f) return;
-        const rd = new FileReader();
-        rd.onload = ev => {
+                if (line.startsWith('#EXTINF:')) {
+                    const commaIndex = line.lastIndexOf(',');
+                    const name = commaIndex !== -1 ? line.substring(commaIndex + 1).trim() : 'İsimsiz Kanal';
+                    const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
+                    const logo = logoMatch ? logoMatch[1].trim() : '';
+                    const groupMatch = line.match(/group-title="([^"]*)"/i);
+                    const group = (groupMatch && groupMatch[1].trim()) ? groupMatch[1].trim() : 'Genel';
+                    currentMeta = { name, logo, group };
+                } else if (!line.startsWith('#')) {
+                    if (currentMeta) {
+                        channels.push({
+                            uid: `${subId}_${channels.length}`,
+                            subId,
+                            subName,
+                            subColorIndex,
+                            name: currentMeta.name || `Kanal ${channels.length + 1}`,
+                            logo: currentMeta.logo,
+                            group: currentMeta.group,
+                            url: line
+                        });
+                        currentMeta = null;
+                    }
+                }
+            }
+            return channels;
+        }
+
+        async function addNewSubscription(customName, content, saveToDB = true) {
+            if (!content || (!content.includes('#EXTM3U') && !content.includes('#EXTINF'))) {
+                showToast('Geçersiz M3U formatı! #EXTINF etiketleri bulunamadı.', 'error');
+                return false;
+            }
+
+            const subIndex = state.subscriptions.length;
+            const subId = 'sub_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+            const subName = customName.trim() || `Üyelik ${subIndex + 1}`;
+            const colorIndex = subIndex % SUB_COLORS.length;
+
+            const parsed = parseM3UChannels(content, subId, subName, colorIndex);
+            if (parsed.length === 0) {
+                showToast('Listede oynatılabilir kanal bulunamadı.', 'error');
+                return false;
+            }
+
+            const subObj = {
+                id: subId,
+                name: subName,
+                colorIndex,
+                content,
+                channelCount: parsed.length
+            };
+
+            state.subscriptions.push(subObj);
+            if (saveToDB) {
+                try {
+                    await dbSaveSubscription(subObj);
+                } catch (e) {
+                    console.warn('IndexedDB kayıt uyarısı:', e);
+                }
+            }
+
+            rebuildAllChannels();
+            showToast(`"${subName}" eklendi (${parsed.length.toLocaleString('tr-TR')} kanal)`, 'success');
+            return true;
+        }
+
+        function rebuildAllChannels() {
+            let combined = [];
+            state.subscriptions.forEach(sub => {
+                const chs = parseM3UChannels(sub.content, sub.id, sub.name, sub.colorIndex);
+                combined = combined.concat(chs);
+            });
+
+            state.allChannels = combined;
+            updateSubscriptionDropdown();
+            updateCategoryDropdown();
+            applyFilters();
+
+            if (combined.length > 0) {
+                dom.emptySidebarState.classList.add('hidden');
+                dom.playlistStatsBadge.classList.remove('hidden');
+                dom.playlistStatsBadge.classList.add('flex');
+                dom.totalChannelsCount.textContent = `${state.subscriptions.length} Üyelik • ${combined.length.toLocaleString('tr-TR')} Kanal`;
+            } else {
+                dom.emptySidebarState.classList.remove('hidden');
+                dom.playlistStatsBadge.classList.add('hidden');
+            }
+        }
+
+        function updateSubscriptionDropdown() {
+            const select = dom.subscriptionSelect;
+            select.innerHTML = `<option value="ALL">Tüm Üyelikler (${state.allChannels.length})</option>`;
+            state.subscriptions.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub.id;
+                opt.textContent = `${sub.name} (${sub.channelCount})`;
+                select.appendChild(opt);
+            });
+            select.value = state.selectedSubId;
+        }
+
+        function updateCategoryDropdown() {
+            const categoryCounts = new Map();
+            state.allChannels.forEach(ch => {
+                if (state.selectedSubId !== 'ALL' && ch.subId !== state.selectedSubId) return;
+                categoryCounts.set(ch.group, (categoryCounts.get(ch.group) || 0) + 1);
+            });
+
+            state.categories = categoryCounts;
+            const totalInSub = Array.from(categoryCounts.values()).reduce((a, b) => a + b, 0);
+            const select = dom.categorySelect;
+            select.innerHTML = `<option value="ALL">Tüm Kategoriler (${totalInSub})</option>`;
+
+            const sorted = Array.from(categoryCounts.entries()).sort((a, b) => a[0].localeCompare(b[0], 'tr'));
+            sorted.forEach(([groupName, count]) => {
+                const opt = document.createElement('option');
+                opt.value = groupName;
+                opt.textContent = `${groupName} (${count})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function applyFilters() {
+            const query = state.searchQuery.toLowerCase().trim();
+            state.filteredChannels = state.allChannels.filter(ch => {
+                if (state.selectedSubId !== 'ALL' && ch.subId !== state.selectedSubId) return false;
+                if (state.activeTab === 'FAV' && !state.favorites.has(ch.url)) return false;
+                if (state.selectedCategory !== 'ALL' && ch.group !== state.selectedCategory) return false;
+                if (query && !ch.name.toLowerCase().includes(query)) return false;
+                return true;
+            });
+
+            state.renderLimit = state.renderStep;
+            renderChannelList();
+        }
+
+        // --- KANAL LİSTESİ RENDER ---
+        function renderChannelList() {
+            const wrapper = dom.channelItemsWrapper;
+            wrapper.innerHTML = '';
+
+            if (state.filteredChannels.length === 0) {
+                if (state.allChannels.length > 0) {
+                    wrapper.innerHTML = `
+                        <div class="text-center py-10 px-4 text-slate-400">
+                            <p class="text-sm font-medium text-slate-300">Eşleşen kanal bulunamadı</p>
+                            <p class="text-xs text-slate-500 mt-1">Arama kelimesini veya üyelik/kategori filtresini değiştirin.</p>
+                        </div>
+                    `;
+                }
+                dom.loadMoreWrapper.classList.add('hidden');
+                return;
+            }
+
+            // Hangi kanalların hangi pencerelerde açık olduğunu tespit et
+            const activeUrlsMap = new Map();
+            state.slots.forEach((slot, idx) => {
+                if (slot.channel) {
+                    activeUrlsMap.set(slot.channel.uid, idx + 1);
+                }
+            });
+
+            const sliceToRender = state.filteredChannels.slice(0, state.renderLimit);
+            const fragment = document.createDocumentFragment();
+
+            sliceToRender.forEach(channel => {
+                const playingInSlotNum = activeUrlsMap.get(channel.uid);
+                const isFav = state.favorites.has(channel.url);
+                const subColor = SUB_COLORS[channel.subColorIndex % SUB_COLORS.length];
+
+                const item = document.createElement('div');
+                item.draggable = true;
+                item.className = `group flex items-center justify-between gap-2 p-2 rounded-xl cursor-pointer transition-all border ${
+                    playingInSlotNum 
+                        ? 'bg-cyan-500/15 border-cyan-500/40 text-white' 
+                        : 'bg-cinema-800/40 hover:bg-cinema-800 border-transparent hover:border-slate-700/70 text-slate-300'
+                }`;
+
+                // Sürükle-bırak başlatma
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', channel.uid);
+                });
+
+                const logoHtml = channel.logo 
+                    ? `<img src="${escapeHtml(channel.logo)}" alt="" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" class="w-full h-full object-contain p-1">
+                       <div class="hidden w-full h-full items-center justify-center text-slate-500 font-bold text-xs">${escapeHtml(channel.name.substring(0, 2).toUpperCase())}</div>`
+                    : `<div class="w-full h-full flex items-center justify-center text-slate-500 font-bold text-xs">${escapeHtml(channel.name.substring(0, 2).toUpperCase())}</div>`;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-lg bg-cinema-950 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                            ${logoHtml}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5">
+                                <p class="text-xs sm:text-sm font-medium truncate ${playingInSlotNum ? 'text-cyan-300' : 'text-slate-200 group-hover:text-white'}">
+                                    ${escapeHtml(channel.name)}
+                                </p>
+                                ${playingInSlotNum ? `<span class="px-1.5 py-0.2 rounded bg-cyan-500 text-cinema-950 text-[10px] font-bold shrink-0">P${playingInSlotNum}</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="px-1.5 py-0.2 rounded text-[10px] font-medium border ${subColor.bg} ${subColor.text} ${subColor.border} truncate max-w-[90px]">
+                                    ${escapeHtml(channel.subName)}
+                                </span>
+                                <span class="text-[11px] text-slate-500 truncate">${escapeHtml(channel.group)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-0.5 shrink-0">
+                        <button class="popout-item-btn p-1.5 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-cinema-700/80 transition-colors opacity-0 group-hover:opacity-100" title="Yeni Tarayıcı Penceresinde Aç">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                        </button>
+                        <button class="fav-btn p-1.5 rounded-lg hover:bg-cinema-700/80 transition-colors ${isFav ? 'text-amber-400' : 'text-slate-600 hover:text-slate-300'}" title="${isFav ? 'Favorilerden Çıkar' : 'Favorilere Ekle'}">
+                            <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.fav-btn') || e.target.closest('.popout-item-btn')) return;
+                    playChannelInSlot(state.activeSlotIndex, channel);
+                    if (window.innerWidth < 640) {
+                        dom.sidebar.classList.add('-translate-x-full');
+                    }
+                });
+
+                item.querySelector('.popout-item-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openPopoutWindow(channel);
+                });
+
+                item.querySelector('.fav-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleFavorite(channel.url);
+                });
+
+                fragment.appendChild(item);
+            });
+
+            wrapper.appendChild(fragment);
+
+            if (state.filteredChannels.length > state.renderLimit) {
+                const remaining = state.filteredChannels.length - state.renderLimit;
+                dom.loadMoreBtn.textContent = `Daha Fazla Göster (${remaining} kanal kaldı)`;
+                dom.loadMoreWrapper.classList.remove('hidden');
+            } else {
+                dom.loadMoreWrapper.classList.add('hidden');
+            }
+        }
+
+        // --- FAVORİ YÖNETİMİ ---
+        function loadFavoritesFromStorage() {
             try {
-                const d = JSON.parse(ev.target.result);
-                app.accounts = d.accounts || [];
-                app.channels = d.channels || [];
-                app.favs = d.favs || [];
-                save(); updateFilters(); renderList(); closeM('bakModal');
-            } catch { alert('Hatalı dosya.'); }
-        };
-        rd.readAsText(f);
-    }
+                const saved = JSON.parse(localStorage.getItem('novastream_favorites') || '[]');
+                state.favorites = new Set(saved);
+                dom.favCountBadge.textContent = state.favorites.size;
+            } catch (e) {
+                state.favorites = new Set();
+            }
+        }
 
-    function esc(s) { return String(s || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+        function toggleFavorite(url) {
+            if (state.favorites.has(url)) {
+                state.favorites.delete(url);
+                showToast('Favorilerden çıkarıldı');
+            } else {
+                state.favorites.add(url);
+                showToast('Favorilere eklendi', 'success');
+            }
+            localStorage.setItem('novastream_favorites', JSON.stringify(Array.from(state.favorites)));
+            dom.favCountBadge.textContent = state.favorites.size;
+            if (state.activeTab === 'FAV') applyFilters();
+            else renderChannelList();
+        }
 
-    (async () => {
-        await initDB();
-        const saved = await load();
-        if (saved) Object.assign(app, saved);
-        updateFilters();
-        renderList();
-        setGrid(app.grid || 1);
-    })();
-</script>
+        // --- 2 DEMO ÜYELİK YÜKLEME ---
+        async function loadDemoSubscriptions() {
+            const sub1M3U = `#EXTM3U
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/NASA_logo.svg/200px-NASA_logo.svg.png" group-title="Belgesel",NASA TV (Canlı)
+https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8
+#EXTINF:-1 tvg-logo="" group-title="Haber",DW English HD
+https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8`;
+
+            const sub2M3U = `#EXTM3U
+#EXTINF:-1 tvg-logo="" group-title="Sinema",Big Buck Bunny (1080p)
+https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+#EXTINF:-1 tvg-logo="" group-title="Haber",France 24 English
+https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8`;
+
+            await addNewSubscription('Üyelik 1 (Belgesel & Haber)', sub1M3U, false);
+            await addNewSubscription('Üyelik 2 (Sinema & Dünya)', sub2M3U, false);
+            closeModal();
+
+            // Otomatik 2 pencere düzenine geç ve iki farklı üyelikten kanalları başlat
+            setLayout(2);
+            const ch1 = state.allChannels.find(c => c.subName.includes('Üyelik 1'));
+            const ch2 = state.allChannels.find(c => c.subName.includes('Üyelik 2'));
+            if (ch1) playChannelInSlot(0, ch1);
+            if (ch2) playChannelInSlot(1, ch2);
+            setActiveSlot(0);
+        }
+
+        // --- MODALLAR VE ÜYELİK YÖNETİMİ ---
+        function openModal() {
+            dom.subNameInput.value = `Üyelik ${state.subscriptions.length + 1}`;
+            dom.urlStatusMsg.classList.add('hidden');
+            dom.uploadModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            dom.uploadModal.classList.add('hidden');
+        }
+
+        function openManageModal() {
+            renderSubscriptionsManager();
+            dom.manageSubsModal.classList.remove('hidden');
+        }
+
+        function closeManageModal() {
+            dom.manageSubsModal.classList.add('hidden');
+        }
+
+        function renderSubscriptionsManager() {
+            const container = dom.subscriptionsListContainer;
+            container.innerHTML = '';
+
+            if (state.subscriptions.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Henüz kayıtlı üyelik bulunmuyor.</p>`;
+                return;
+            }
+
+            state.subscriptions.forEach(sub => {
+                const color = SUB_COLORS[sub.colorIndex % SUB_COLORS.length];
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-3 rounded-xl bg-cinema-950 border border-slate-800';
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full ${color.dot} shrink-0"></span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-white truncate">${escapeHtml(sub.name)}</p>
+                            <p class="text-xs text-slate-500">${sub.channelCount.toLocaleString('tr-TR')} Kanal</p>
+                        </div>
+                    </div>
+                    <button class="del-sub-btn px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium transition-colors">
+                        Sil
+                    </button>
+                `;
+
+                row.querySelector('.del-sub-btn').addEventListener('click', async () => {
+                    await dbDeleteSubscription(sub.id);
+                    state.subscriptions = state.subscriptions.filter(s => s.id !== sub.id);
+                    if (state.selectedSubId === sub.id) state.selectedSubId = 'ALL';
+                    rebuildAllChannels();
+                    renderSubscriptionsManager();
+                    showToast(`"${sub.name}" silindi`);
+                });
+
+                container.appendChild(row);
+            });
+        }
+
+        function handleFileUpload(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const ok = await addNewSubscription(dom.subNameInput.value, e.target.result, true);
+                if (ok) closeModal();
+            };
+            reader.readAsText(file);
+        }
+
+        async function handleUrlFetch() {
+            const url = dom.m3uUrlInput.value.trim();
+            if (!url) {
+                showToast('Lütfen geçerli bir M3U adresi girin.', 'error');
+                return;
+            }
+
+            dom.fetchUrlBtn.disabled = true;
+            dom.fetchUrlBtn.textContent = 'Yükleniyor...';
+            dom.urlStatusMsg.classList.remove('hidden', 'text-rose-400');
+            dom.urlStatusMsg.classList.add('text-cyan-400');
+            dom.urlStatusMsg.textContent = 'Liste sunucudan çekiliyor...';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP Hatası: ${response.status}`);
+                const text = await response.text();
+                const ok = await addNewSubscription(dom.subNameInput.value, text, true);
+                if (ok) closeModal();
+            } catch (err) {
+                dom.urlStatusMsg.classList.remove('text-cyan-400');
+                dom.urlStatusMsg.classList.add('text-rose-400');
+                dom.urlStatusMsg.innerHTML = `<strong>Bağlantı Engellendi (CORS):</strong> Sunucu doğrudan link çekmeye izin vermiyor. Linki tarayıcıya yapıştırıp <code>.m3u</code> olarak indirdikten sonra yukarıdaki dosya alanından yükleyin.`;
+            } finally {
+                dom.fetchUrlBtn.disabled = false;
+                dom.fetchUrlBtn.textContent = 'Getir';
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+        }
+
+        // --- GOOGLE DRIVE BULUT SENKRONİZASYON & YEDEKLEME ---
+        function loadGoogleClientIdFromStorage() {
+            try {
+                const savedId = localStorage.getItem('novastream_gdrive_client_id') || '';
+                state.googleClientId = savedId.trim();
+                if (dom.googleClientIdInput) {
+                    dom.googleClientIdInput.value = state.googleClientId;
+                }
+            } catch (e) {
+                state.googleClientId = '';
+            }
+        }
+
+        function buildBackupPayload() {
+            return {
+                app: 'NovaStreamMultiIPTV',
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                favorites: Array.from(state.favorites),
+                subscriptions: state.subscriptions.map(sub => ({
+                    id: sub.id,
+                    name: sub.name,
+                    colorIndex: sub.colorIndex,
+                    content: sub.content,
+                    channelCount: sub.channelCount
+                }))
+            };
+        }
+
+        async function applyBackupPayload(payload) {
+            if (!payload || !Array.isArray(payload.subscriptions)) {
+                throw new Error('Geçersiz yedek dosyası formatı.');
+            }
+
+            await dbClearAllSubscriptions();
+            state.subscriptions = [];
+
+            for (let i = 0; i < payload.subscriptions.length; i++) {
+                const rawSub = payload.subscriptions[i];
+                if (!rawSub || !rawSub.content) continue;
+                const subObj = {
+                    id: rawSub.id || ('sub_' + Date.now() + '_' + i),
+                    name: rawSub.name || `Üyelik ${i + 1}`,
+                    colorIndex: typeof rawSub.colorIndex === 'number' ? rawSub.colorIndex : (i % SUB_COLORS.length),
+                    content: rawSub.content,
+                    channelCount: rawSub.channelCount || parseM3UChannels(rawSub.content, '', '', 0).length
+                };
+                state.subscriptions.push(subObj);
+                await dbSaveSubscription(subObj);
+            }
+
+            if (Array.isArray(payload.favorites)) {
+                state.favorites = new Set(payload.favorites);
+                localStorage.setItem('novastream_favorites', JSON.stringify(Array.from(state.favorites)));
+                dom.favCountBadge.textContent = state.favorites.size;
+            }
+
+            state.selectedSubId = 'ALL';
+            state.selectedCategory = 'ALL';
+            rebuildAllChannels();
+        }
+
+        function updateDriveUiState() {
+            const connected = Boolean(state.googleAccessToken);
+            dom.driveUploadBtn.disabled = !connected;
+            dom.driveRestoreBtn.disabled = !connected;
+
+            if (connected) {
+                dom.driveConnectionStatus.textContent = 'Drive Bağlantısı: Aktif';
+                dom.driveConnectionStatus.className = 'text-xs font-semibold text-emerald-400';
+                dom.driveConnectBtn.textContent = 'Bağlantıyı Kes';
+                dom.driveConnectBtn.className = 'px-3.5 py-2 rounded-xl bg-cinema-800 hover:bg-cinema-700 border border-slate-700 text-slate-300 text-xs font-semibold shrink-0 transition-colors';
+                if (dom.driveBtnLabel) dom.driveBtnLabel.textContent = 'Drive: Bağlı';
+            } else {
+                dom.driveConnectionStatus.textContent = 'Drive Bağlantısı: Kapalı';
+                dom.driveConnectionStatus.className = 'text-xs font-semibold text-slate-300';
+                dom.driveConnectBtn.textContent = "Drive'a Bağlan";
+                dom.driveConnectBtn.className = 'px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition-colors';
+                if (dom.driveBtnLabel) dom.driveBtnLabel.textContent = 'Google Drive';
+            }
+        }
+
+        function openDriveModal() {
+            updateDriveUiState();
+            dom.driveModal.classList.remove('hidden');
+        }
+
+        function closeDriveModal() {
+            dom.driveModal.classList.add('hidden');
+        }
+
+        function connectGoogleDrive() {
+            if (state.googleAccessToken) {
+                state.googleAccessToken = null;
+                updateDriveUiState();
+                showToast('Google Drive bağlantısı kapatıldı.');
+                return;
+            }
+
+            const clientId = (dom.googleClientIdInput.value || state.googleClientId || '').trim();
+            if (!clientId) {
+                showToast("Google Drive bağlantısı için önce bir OAuth Client ID girip kaydedin veya 'JSON İndir' kullanın.", 'error');
+                return;
+            }
+
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+                showToast("Google kimlik servisi yüklenemedi (çevrimdışı veya engelleyici aktif). 'JSON İndir' ile yedekleyebilirsiniz.", 'error');
+                return;
+            }
+
+            try {
+                const tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: clientId,
+                    scope: DRIVE_SCOPE,
+                    callback: (tokenResponse) => {
+                        if (tokenResponse && tokenResponse.access_token) {
+                            state.googleAccessToken = tokenResponse.access_token;
+                            updateDriveUiState();
+                            showToast('Google Drive bağlantısı başarılı!', 'success');
+                            findDriveBackupFile().then(file => {
+                                if (file && file.modifiedTime) {
+                                    const dt = new Date(file.modifiedTime).toLocaleString('tr-TR');
+                                    dom.driveBackupInfo.textContent = `Bulutta yedek bulundu (${dt}).`;
+                                } else {
+                                    dom.driveBackupInfo.textContent = "Drive'da henüz yedek dosyası yok. 'Drive'a Şimdi Yedekle' ile oluşturabilirsiniz.";
+                                }
+                            }).catch(() => {});
+                        } else {
+                            showToast('Google Drive oturumu tamamlanamadı.', 'error');
+                        }
+                    }
+                });
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } catch (err) {
+                showToast('OAuth başlatılırken hata oluştu: ' + err.message, 'error');
+            }
+        }
+
+        async function findDriveBackupFile() {
+            if (!state.googleAccessToken) throw new Error('Drive oturumu açık değil.');
+            const query = encodeURIComponent(`name='${DRIVE_BACKUP_FILENAME}' and trashed=false`);
+            const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}&fields=files(id,name,modifiedTime)`;
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${state.googleAccessToken}` }
+            });
+            if (!res.ok) {
+                throw new Error(`Drive listeleme hatası (${res.status})`);
+            }
+            const data = await res.json();
+            return (data.files && data.files.length > 0) ? data.files[0] : null;
+        }
+
+        async function uploadBackupToDrive() {
+            if (!state.googleAccessToken) {
+                showToast("Önce Google Drive'a bağlanın.", 'error');
+                return;
+            }
+
+            dom.driveUploadBtn.disabled = true;
+            dom.driveUploadBtn.querySelector('span').textContent = 'Yedekleniyor...';
+
+            try {
+                const existingFile = await findDriveBackupFile();
+                const jsonString = JSON.stringify(buildBackupPayload());
+                const blob = new Blob([jsonString], { type: 'application/json' });
+
+                let response;
+                if (existingFile && existingFile.id) {
+                    response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`, {
+                        method: 'PATCH',
+                        headers: {
+                            Authorization: `Bearer ${state.googleAccessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: blob
+                    });
+                } else {
+                    const metadata = {
+                        name: DRIVE_BACKUP_FILENAME,
+                        parents: ['appDataFolder']
+                    };
+                    const formData = new FormData();
+                    formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    formData.append('file', blob);
+
+                    response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${state.googleAccessToken}` },
+                        body: formData
+                    });
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Yükleme hatası (${response.status})`);
+                }
+
+                dom.driveBackupInfo.textContent = `Son yedekleme: ${new Date().toLocaleString('tr-TR')}`;
+                showToast('Tüm üyelikler ve favoriler Google Drive’a yedeklendi!', 'success');
+            } catch (err) {
+                showToast('Drive yedekleme başarısız: ' + err.message, 'error');
+            } finally {
+                dom.driveUploadBtn.querySelector('span').textContent = "Drive'a Şimdi Yedekle";
+                updateDriveUiState();
+            }
+        }
+
+        async function restoreBackupFromDrive() {
+            if (!state.googleAccessToken) {
+                showToast("Önce Google Drive'a bağlanın.", 'error');
+                return;
+            }
+
+            dom.driveRestoreBtn.disabled = true;
+            dom.driveRestoreBtn.querySelector('span').textContent = 'Geri Yükleniyor...';
+
+            try {
+                const file = await findDriveBackupFile();
+                if (!file || !file.id) {
+                    showToast("Google Drive'da kayıtlı yedek dosyası bulunamadı.", 'error');
+                    return;
+                }
+
+                const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                    headers: { Authorization: `Bearer ${state.googleAccessToken}` }
+                });
+                if (!res.ok) {
+                    throw new Error(`İndirme hatası (${res.status})`);
+                }
+
+                const payload = await res.json();
+                await applyBackupPayload(payload);
+                showToast("Üyelikler Google Drive'dan başarıyla geri yüklendi!", 'success');
+                closeDriveModal();
+            } catch (err) {
+                showToast('Drive geri yükleme başarısız: ' + err.message, 'error');
+            } finally {
+                dom.driveRestoreBtn.querySelector('span').textContent = "Drive'dan Geri Yükle";
+                updateDriveUiState();
+            }
+        }
+
+        function exportLocalJsonBackup() {
+            try {
+                const dataStr = JSON.stringify(buildBackupPayload(), null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = DRIVE_BACKUP_FILENAME;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('Yedek dosyası (.json) indirildi.', 'success');
+            } catch (err) {
+                showToast('Yedek indirilemedi: ' + err.message, 'error');
+            }
+        }
+
+        function handleLocalJsonImport(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const payload = JSON.parse(e.target.result);
+                    await applyBackupPayload(payload);
+                    showToast('Yedek dosyasındaki üyelikler geri yüklendi!', 'success');
+                    closeDriveModal();
+                } catch (err) {
+                    showToast('JSON yedeği okunamadı: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- OLAY DİNLEYİCİLERİ ---
+        function setupEventListeners() {
+            // Düzen (Layout) Seçici Butonları
+            document.querySelectorAll('.layout-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setLayout(parseInt(btn.dataset.layout, 10));
+                });
+            });
+
+            // Çoklu Ekran Tam Ekran (Grid Fullscreen) Olayları
+            dom.gridFullscreenBtn.addEventListener('click', toggleGridFullscreen);
+            dom.fsExitBtn.addEventListener('click', () => {
+                if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            });
+            document.addEventListener('fullscreenchange', handleFullscreenStateChange);
+            dom.playerGridContainer.addEventListener('mousemove', showFsFloatingControls);
+
+            document.querySelectorAll('.fs-layout-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setLayout(parseInt(btn.dataset.fsLayout, 10));
+                });
+            });
+
+            dom.fsSoloAudioBtn.addEventListener('click', () => {
+                dom.soloAudioToggleBtn.click();
+            });
+
+            dom.fsToggleDrawerBtn.addEventListener('click', () => {
+                const isHidden = dom.fsChannelDrawer.classList.contains('hidden');
+                if (isHidden) {
+                    populateFsDrawerFilters();
+                    renderFsDrawerList();
+                    dom.fsChannelDrawer.classList.remove('hidden');
+                    dom.fsChannelDrawer.classList.add('flex');
+                } else {
+                    dom.fsChannelDrawer.classList.add('hidden');
+                    dom.fsChannelDrawer.classList.remove('flex');
+                }
+            });
+
+            dom.fsCloseDrawerBtn.addEventListener('click', () => {
+                dom.fsChannelDrawer.classList.add('hidden');
+                dom.fsChannelDrawer.classList.remove('flex');
+            });
+
+            dom.fsSubSelect.addEventListener('change', renderFsDrawerList);
+            dom.fsSearchInput.addEventListener('input', renderFsDrawerList);
+
+            // Tekil Ses (Solo Audio) Modu
+            dom.soloAudioToggleBtn.addEventListener('click', () => {
+                state.soloAudio = !state.soloAudio;
+                if (state.soloAudio) {
+                    dom.soloAudioToggleBtn.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-medium transition-colors';
+                    dom.soloAudioToggleBtn.querySelector('span').textContent = 'Tekil Ses: Açık';
+                    if (dom.fsSoloAudioText) dom.fsSoloAudioText.textContent = 'Tekil Ses: Açık';
+                    setActiveSlot(state.activeSlotIndex);
+                    showToast('Tekil Ses Açık: Sadece seçili pencerenin sesi duyulur');
+                } else {
+                    dom.soloAudioToggleBtn.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cinema-800 border border-slate-700 text-slate-400 text-xs font-medium transition-colors';
+                    dom.soloAudioToggleBtn.querySelector('span').textContent = 'Tekil Ses: Kapalı';
+                    if (dom.fsSoloAudioText) dom.fsSoloAudioText.textContent = 'Tekil Ses: Kapalı';
+                    state.slots.forEach((_, idx) => setSlotMute(idx, false));
+                    showToast('Tekil Ses Kapalı: Tüm pencerelerin sesi açıldı');
+                }
+            });
+
+            // Tüm Yayınları Durdur
+            dom.stopAllStreamsBtn.addEventListener('click', () => {
+                state.slots.forEach((_, idx) => stopSlot(idx));
+                showToast('Tüm pencerelerdeki yayınlar durduruldu');
+            });
+
+            // Modallar
+            dom.openUploadModalBtn.addEventListener('click', openModal);
+            dom.closeModalBtn.addEventListener('click', closeModal);
+            dom.uploadModal.addEventListener('click', (e) => { if (e.target === dom.uploadModal) closeModal(); });
+
+            dom.manageSubsBtn.addEventListener('click', openManageModal);
+            dom.closeManageSubsBtn.addEventListener('click', closeManageModal);
+            dom.manageSubsModal.addEventListener('click', (e) => { if (e.target === dom.manageSubsModal) closeManageModal(); });
+
+            dom.deleteAllSubsBtn.addEventListener('click', async () => {
+                await dbClearAllSubscriptions();
+                state.subscriptions = [];
+                state.selectedSubId = 'ALL';
+                rebuildAllChannels();
+                closeManageModal();
+                showToast('Tüm kayıtlı üyelikler temizlendi');
+            });
+
+            // Google Drive & JSON Yedekleme Olayları
+            dom.driveSyncBtn.addEventListener('click', openDriveModal);
+            dom.closeDriveModalBtn.addEventListener('click', closeDriveModal);
+            dom.driveModal.addEventListener('click', (e) => { if (e.target === dom.driveModal) closeDriveModal(); });
+            dom.driveConnectBtn.addEventListener('click', connectGoogleDrive);
+            dom.driveUploadBtn.addEventListener('click', uploadBackupToDrive);
+            dom.driveRestoreBtn.addEventListener('click', restoreBackupFromDrive);
+
+            dom.saveClientIdBtn.addEventListener('click', () => {
+                const val = (dom.googleClientIdInput.value || '').trim();
+                state.googleClientId = val;
+                localStorage.setItem('novastream_gdrive_client_id', val);
+                showToast(val ? 'Google Cloud Client ID kaydedildi.' : 'Client ID temizlendi.', 'success');
+            });
+
+            dom.exportJsonBackupBtn.addEventListener('click', exportLocalJsonBackup);
+            dom.importJsonBackupBtn.addEventListener('click', () => dom.jsonBackupFileInput.click());
+            dom.jsonBackupFileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    handleLocalJsonImport(e.target.files[0]);
+                    e.target.value = '';
+                }
+            });
+
+            // Dosya Yükleme
+            dom.dropZone.addEventListener('click', () => dom.fileInput.click());
+            dom.fileInput.addEventListener('change', (e) => handleFileUpload(e.target.files[0]));
+            dom.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dom.dropZone.classList.add('border-cyan-500'); });
+            dom.dropZone.addEventListener('dragleave', () => dom.dropZone.classList.remove('border-cyan-500'));
+            dom.dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dom.dropZone.classList.remove('border-cyan-500');
+                if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
+            });
+
+            dom.fetchUrlBtn.addEventListener('click', handleUrlFetch);
+            dom.modalDemoBtn.addEventListener('click', loadDemoSubscriptions);
+
+            // Filtreler
+            dom.subscriptionSelect.addEventListener('change', (e) => {
+                state.selectedSubId = e.target.value;
+                state.selectedCategory = 'ALL';
+                updateCategoryDropdown();
+                applyFilters();
+            });
+
+            dom.categorySelect.addEventListener('change', (e) => {
+                state.selectedCategory = e.target.value;
+                applyFilters();
+            });
+
+            dom.searchInput.addEventListener('input', (e) => {
+                state.searchQuery = e.target.value;
+                dom.clearSearchBtn.classList.toggle('hidden', !state.searchQuery);
+                applyFilters();
+            });
+
+            dom.clearSearchBtn.addEventListener('click', () => {
+                dom.searchInput.value = '';
+                state.searchQuery = '';
+                dom.clearSearchBtn.classList.add('hidden');
+                applyFilters();
+            });
+
+            dom.tabAllBtn.addEventListener('click', () => {
+                state.activeTab = 'ALL';
+                dom.tabAllBtn.className = 'flex-1 py-1.5 px-2 rounded-lg text-xs font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 transition-colors';
+                dom.tabFavBtn.className = 'flex-1 py-1.5 px-2 rounded-lg text-xs font-medium bg-cinema-800 text-slate-400 border border-slate-700/60 hover:text-slate-200 transition-colors flex items-center justify-center gap-1';
+                applyFilters();
+            });
+
+            dom.tabFavBtn.addEventListener('click', () => {
+                state.activeTab = 'FAV';
+                dom.tabFavBtn.className = 'flex-1 py-1.5 px-2 rounded-lg text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30 transition-colors flex items-center justify-center gap-1';
+                dom.tabAllBtn.className = 'flex-1 py-1.5 px-2 rounded-lg text-xs font-medium bg-cinema-800 text-slate-400 border border-slate-700/60 hover:text-slate-200 transition-colors';
+                applyFilters();
+            });
+
+            dom.loadMoreBtn.addEventListener('click', () => {
+                state.renderLimit += state.renderStep;
+                renderChannelList();
+            });
+
+            dom.toggleSidebarBtn.addEventListener('click', () => {
+                if (window.innerWidth < 640) dom.sidebar.classList.toggle('-translate-x-full');
+                else dom.sidebar.classList.toggle('hidden');
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
